@@ -1,6 +1,6 @@
 pragma solidity ^0.4.23;
 
-import "../libraries/openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import "./libraries/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 contract Token {
     function totalSupply() public view returns (uint256);
@@ -19,7 +19,13 @@ contract Mediator is Ownable {
 
     }
 
-    function checkToken(address token) public {
-        require();
+    function checkToken(address addr) view public returns(bool) {
+        Token token = Token(addr);
+
+        require(token.totalSupply() > 0);
+        require(token.balanceOf(msg.sender) > 0);
+        require(token.approve(this, 0));
+        require(token.transferFrom(msg.sender, this, 0));
+        return true;
     }
 }
