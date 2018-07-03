@@ -13,7 +13,57 @@ contract ExampleToken is MintableToken {
 
     uint32 public constant decimals = 8;
 
+    bool disableApprove = false;
+    bool disableTransferFrom = false;
+
+
+    modifier checkApprove {
+        require(!disableApprove);
+        _;
+    }
+
+    modifier checkTransferFrom {
+        require(!disableTransferFrom);
+        _;
+    }
+
     constructor() public {
 
+    }
+
+    function changeApproveState() {
+        if (disableApprove) {
+            disableApprove = false;
+        } else {
+            disableApprove = true;
+        }
+    }
+
+    function changeTransferFromState() {
+        if (disableTransferFrom) {
+            disableTransferFrom = false;
+        } else {
+            disableTransferFrom = true;
+        }
+    }
+
+    function approve(
+        address _spender,
+        uint256 _value
+    ) public checkApprove returns (bool) {
+        return super.approve(_spender, _value);
+    }
+
+    function increaseApproval(
+        address _spender,
+        uint _addedValue
+    ) public checkApprove returns (bool) {
+        return super.increaseApproval(_spender, _addedValue);
+    }
+
+    function transferFrom(
+        address from, address to,
+        uint256 value) public checkTransferFrom returns (bool) {
+        return super.transferFrom(from, to, value);
     }
 }

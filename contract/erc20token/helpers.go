@@ -7,8 +7,8 @@ import (
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 )
 
-// MewExampleTokenSession func
-func MewExampleTokenSession(account bind.TransactOpts, contact common.Address,
+// NewExampleTokenSession func
+func NewExampleTokenSession(account bind.TransactOpts, contact common.Address,
 	server backend.Backend) (*ExampleTokenSession, error) {
 	contract, err := NewExampleToken(contact, server.Connect())
 	if err != nil {

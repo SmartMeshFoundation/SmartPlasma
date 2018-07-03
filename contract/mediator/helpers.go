@@ -7,8 +7,8 @@ import (
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 )
 
-// MewMediatorSession function
-func MewMediatorSession(account bind.TransactOpts, contact common.Address,
+// NewMediatorSession function
+func NewMediatorSession(account bind.TransactOpts, contact common.Address,
 	server backend.Backend) (*MediatorSession, error) {
 	contract, err := NewMediator(contact, server.Connect())
 	if err != nil {
@@ -28,7 +28,8 @@ func MewMediatorSession(account bind.TransactOpts, contact common.Address,
 // Deploy function
 func Deploy(account *bind.TransactOpts, server backend.Backend) (common.Address,
 	*types.Receipt, *Mediator, error) {
-	addr, tx, contract, err := DeployMediator(account, server.Connect())
+	addr, tx, contract, err := DeployMediator(account, server.Connect(),
+		common.HexToAddress("0x"))
 	if err != nil {
 		return [20]byte{}, nil, nil, err
 	}
