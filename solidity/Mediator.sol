@@ -18,6 +18,7 @@ contract Token {
         address to,
         uint256 value
     ) public returns (bool);
+    function transfer(address to, uint256 value) public returns (bool);
 }
 
 contract RootChain {
@@ -53,6 +54,13 @@ contract Mediator is Ownable {
         require(token.approve(this, 0)); // checkToken test3
         require(token.increaseApproval(this, 0)); // checkToken test4
         require(token.transferFrom(msg.sender, this, 0)); // checkToken test5
+
         return true;
+    }
+
+    function deposit(address currency, uint amount) payable public {
+        Token token = Token(currency);
+
+        token.transferFrom(msg.sender, this, amount);
     }
 }

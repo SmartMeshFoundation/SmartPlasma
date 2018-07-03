@@ -2,6 +2,7 @@ package mediator
 
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 	"github.com/smartmeshfoundation/smartplasma/contract/erc20token"
@@ -9,13 +10,16 @@ import (
 	"math/big"
 	"os"
 	"testing"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 var (
-	server   backend.Backend
-	accounts []*bind.TransactOpts
-	session  *MediatorSession
+	server       backend.Backend
+	accounts     []*bind.TransactOpts
+	mediatorAddr common.Address
+
+	owner *bind.TransactOpts
+	user1 *bind.TransactOpts
+	user2 *bind.TransactOpts
 )
 
 func mint(t *testing.T, session *erc20token.ExampleTokenSession,
@@ -29,8 +33,9 @@ func mint(t *testing.T, session *erc20token.ExampleTokenSession,
 	}
 }
 
-func checkToken(t *testing.T, token common.Address, expected bool) {
-	valid, _ := session.CheckToken(token)
+func checkToken(t *testing.T, mediatorSession *MediatorSession,
+	token common.Address, expected bool) {
+	valid, _ := mediatorSession.CheckToken(token)
 	if expected && !valid {
 		t.Fatal("function must return - true")
 	}
@@ -40,26 +45,77 @@ func checkToken(t *testing.T, token common.Address, expected bool) {
 	}
 }
 
+func TestDeposit(t *testing.T) {
+	tokenAddr, _, token, err := erc20token.Deploy(owner, server)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tokenOwnerSess, err := erc20token.NewExampleTokenSession(*owner,
+		tokenAddr, server)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	mint(t, tokenOwnerSess, user1.From, big.NewInt(1))
+
+	tokenUserSess, err := erc20token.NewExampleTokenSession(*user1,
+		tokenAddr, server)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tx, err := tokenUserSess.IncreaseApproval(mediatorAddr, big.NewInt(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !server.GoodTransaction(tx) {
+		t.Fatal("failed to approval tokens")
+	}
+
+	sessU1, err := NewMediatorSession(*user1, mediatorAddr, server)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tx, err = sessU1.Deposit(tokenAddr, big.NewInt(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !server.GoodTransaction(tx) {
+		t.Fatal("failed to transfer tokens")
+	}
+
+	erc20token.LogsTransfer(token)
+}
+
 func TestMediatorSession_CheckToken(t *testing.T) {
-	address, _, _, err := erc20token.Deploy(accounts[0], server)
+	tokenAddr, _, _, err := erc20token.Deploy(owner, server)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	sessU1, err := NewMediatorSession(*user1, mediatorAddr, server)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	tokenSess, err := erc20token.NewExampleTokenSession(*owner,
+		tokenAddr, server)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// checkToken test1
-	checkToken(t, address, false)
+	checkToken(t, sessU1, tokenAddr, false)
 
-	tokenSess, err := erc20token.NewExampleTokenSession(*accounts[0],
-		address, server)
-	if err != nil {
-		log.Fatal(err)
-	}
+	mint(t, tokenSess, user2.From, big.NewInt(1))
 
-	mint(t, tokenSess, accounts[1].From, big.NewInt(1))
+	checkToken(t, sessU1, tokenAddr, false)
 
 	// checkToken test2
-	checkToken(t, address, false)
-	mint(t, tokenSess, accounts[0].From, big.NewInt(1))
+	mint(t, tokenSess, user1.From, big.NewInt(1))
+	checkToken(t, sessU1, tokenAddr, true)
 
 	// checkToken test3
 	// checkToken test4
@@ -71,7 +127,7 @@ func TestMediatorSession_CheckToken(t *testing.T) {
 		t.Fatal("failed to mint tokens")
 	}
 
-	checkToken(t, address, false)
+	checkToken(t, sessU1, tokenAddr, false)
 
 	tx, err = tokenSess.ChangeApproveState()
 	if err != nil {
@@ -90,7 +146,7 @@ func TestMediatorSession_CheckToken(t *testing.T) {
 		t.Fatal("failed to mint tokens")
 	}
 
-	checkToken(t, address, false)
+	checkToken(t, sessU1, tokenAddr, false)
 
 	tx, err = tokenSess.ChangeTransferFromState()
 	if err != nil {
@@ -101,15 +157,18 @@ func TestMediatorSession_CheckToken(t *testing.T) {
 	}
 
 	// normal flow
-	checkToken(t, address, true)
+	checkToken(t, sessU1, tokenAddr, true)
 }
 
 func TestMain(m *testing.M) {
-	accounts = account.GenAccounts(2)
+	accounts = account.GenAccounts(3)
+	owner = accounts[0]
+	user1 = accounts[1]
+	user2 = accounts[2]
 
 	server = backend.NewSimulatedBackend(account.Addresses(accounts))
 
-	address, tr, _, err := Deploy(accounts[0], server)
+	address, tr, _, err := Deploy(owner, server)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -118,7 +177,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("mediator contract not deployed")
 	}
 
-	session, err = NewMediatorSession(*accounts[0], address, server)
+	mediatorAddr = address
 
 	os.Exit(m.Run())
 }

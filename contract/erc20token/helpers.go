@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
+	"log"
 )
 
 // NewExampleTokenSession func
@@ -41,4 +42,43 @@ func Deploy(account *bind.TransactOpts,
 	}
 
 	return addr, tr, contract, nil
+}
+
+// LogsApproval func
+func LogsApproval(token *ExampleToken, spender common.Address) {
+	iterator, err := token.FilterApproval(&bind.FilterOpts{},
+		[]common.Address{}, []common.Address{spender})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer iterator.Close()
+
+	for iterator.Next() {
+		log.Printf("Owner: %s, Spender: %s, Value: %s",
+			iterator.Event.Owner.String(), iterator.Event.Spender.String(),
+			iterator.Event.Value.String())
+	}
+
+	if err := iterator.Error(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// LogsTransfer func
+func LogsTransfer(token *ExampleToken) {
+	iterator, err := token.FilterTransfer(&bind.FilterOpts{},
+		[]common.Address{}, []common.Address{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer iterator.Close()
+
+	for iterator.Next() {
+		log.Printf("From: %s, To: %s, Value: %s", iterator.Event.From.String(),
+			iterator.Event.To.String(), iterator.Event.Value.String())
+	}
+
+	if err := iterator.Error(); err != nil {
+		log.Fatal(err)
+	}
 }
