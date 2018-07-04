@@ -45,9 +45,9 @@ func Deploy(account *bind.TransactOpts,
 }
 
 // LogsApproval func
-func LogsApproval(token *ExampleToken, spender common.Address) {
+func LogsApproval(token *ExampleToken) {
 	iterator, err := token.FilterApproval(&bind.FilterOpts{},
-		[]common.Address{}, []common.Address{spender})
+		[]common.Address{}, []common.Address{})
 	if err != nil {
 		log.Fatal(err)
 	}

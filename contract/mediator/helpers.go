@@ -28,8 +28,7 @@ func NewMediatorSession(account bind.TransactOpts, contact common.Address,
 // Deploy function
 func Deploy(account *bind.TransactOpts, server backend.Backend) (common.Address,
 	*types.Receipt, *Mediator, error) {
-	addr, tx, contract, err := DeployMediator(account, server.Connect(),
-		common.HexToAddress("0x"))
+	addr, tx, contract, err := DeployMediator(account, server.Connect())
 	if err != nil {
 		return [20]byte{}, nil, nil, err
 	}

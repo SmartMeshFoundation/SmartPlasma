@@ -8,6 +8,7 @@ import (
 	"log"
 )
 
+// GenKey func
 func GenKey() *ecdsa.PrivateKey {
 	key, err := crypto.GenerateKey()
 	if err != nil {
@@ -17,10 +18,12 @@ func GenKey() *ecdsa.PrivateKey {
 	return key
 }
 
+// Account func
 func Account(key *ecdsa.PrivateKey) *bind.TransactOpts {
 	return bind.NewKeyedTransactor(key)
 }
 
+// GenAccounts func
 func GenAccounts(number int) (accounts []*bind.TransactOpts) {
 	for i := 0; i < number; i++ {
 		accounts = append(accounts, Account(GenKey()))
@@ -28,10 +31,12 @@ func GenAccounts(number int) (accounts []*bind.TransactOpts) {
 	return
 }
 
+// Address func
 func Address(acc *bind.TransactOpts) common.Address {
 	return acc.From
 }
 
+// Addresses func
 func Addresses(accounts []*bind.TransactOpts) (addresses []common.Address) {
 	for _, a := range accounts {
 		addresses = append(addresses, Address(a))

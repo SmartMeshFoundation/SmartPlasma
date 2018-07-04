@@ -6,6 +6,7 @@ import (
 	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 	"github.com/smartmeshfoundation/smartplasma/contract/erc20token"
+	"github.com/smartmeshfoundation/smartplasma/contract/rootchain"
 	"log"
 	"math/big"
 	"os"
@@ -13,9 +14,10 @@ import (
 )
 
 var (
-	server       backend.Backend
-	accounts     []*bind.TransactOpts
-	mediatorAddr common.Address
+	server        backend.Backend
+	accounts      []*bind.TransactOpts
+	mediatorAddr  common.Address
+	rootChainAddr common.Address
 
 	owner *bind.TransactOpts
 	user1 *bind.TransactOpts
@@ -24,7 +26,7 @@ var (
 
 func mint(t *testing.T, session *erc20token.ExampleTokenSession,
 	acc common.Address, val *big.Int) {
-	tx, err := session.Mint(acc, big.NewInt(1))
+	tx, err := session.Mint(acc, val)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,6 +45,10 @@ func checkToken(t *testing.T, mediatorSession *MediatorSession,
 	if !expected && valid {
 		t.Fatal("function must return - false")
 	}
+}
+
+func TestExit(t *testing.T) {
+	//TODO
 }
 
 func TestDeposit(t *testing.T) {
@@ -86,7 +92,15 @@ func TestDeposit(t *testing.T) {
 		t.Fatal("failed to transfer tokens")
 	}
 
+	erc20token.LogsApproval(token)
 	erc20token.LogsTransfer(token)
+
+	rootSess, err := rootchain.NewRootChainSession(*user1, rootChainAddr, server)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rootchain.LogsDeposit(rootSess.Contract)
 }
 
 func TestMediatorSession_CheckToken(t *testing.T) {
@@ -166,9 +180,13 @@ func TestMain(m *testing.M) {
 	user1 = accounts[1]
 	user2 = accounts[2]
 
+	log.Printf("Owner: %s", owner.From.String())
+	log.Printf("User1: %s", user1.From.String())
+	log.Printf("User2: %s", user2.From.String())
+
 	server = backend.NewSimulatedBackend(account.Addresses(accounts))
 
-	address, tr, _, err := Deploy(owner, server)
+	address, tr, mediator, err := Deploy(owner, server)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -178,6 +196,10 @@ func TestMain(m *testing.M) {
 	}
 
 	mediatorAddr = address
+	rootChainAddr, err = mediator.RootChain(&bind.CallOpts{})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	os.Exit(m.Run())
 }

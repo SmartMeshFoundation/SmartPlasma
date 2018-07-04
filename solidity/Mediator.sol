@@ -1,49 +1,30 @@
 pragma solidity ^0.4.23;
 
 import "./libraries/openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import "./RootChain.sol";
 
 contract Token {
     function totalSupply() public view returns (uint256);
     function balanceOf(address who) public view returns (uint256);
     function approve(
         address _spender,
-        uint256 _value
-    ) public returns (bool);
+        uint256 _value) public returns (bool);
     function increaseApproval(
         address _spender,
-        uint _addedValue
-    ) public returns (bool);
+        uint _addedValue) public returns (bool);
     function transferFrom(
         address from,
         address to,
-        uint256 value
-    ) public returns (bool);
+        uint256 value) public returns (bool);
     function transfer(address to, uint256 value) public returns (bool);
-}
-
-contract RootChain {
-    function deposit(address currency, uint amount) payable public;
-    function startExit(
-        bytes prevTx,
-        bytes prevTxProof,
-        uint prevTxBlkNum,
-        bytes tx, bytes txProof,
-        uint txBlkNum
-    ) public;
-    function challengeExit(
-        uint uid,
-        bytes challengeTx,
-        bytes proof,
-        uint blkNum
-    ) public;
 }
 
 contract Mediator is Ownable {
 
-    RootChain rootChain;
+    RootChain public rootChain;
 
-    constructor(address plasma) public {
-        rootChain = RootChain(plasma);
+    constructor() public {
+        rootChain = new RootChain();
     }
 
     function checkToken(address addr) view public returns(bool) {
@@ -58,9 +39,33 @@ contract Mediator is Ownable {
         return true;
     }
 
-    function deposit(address currency, uint amount) payable public {
-        Token token = Token(currency);
+    function deposit(address currency, uint amount) public {
+        require(amount > 0);
 
+        Token token = Token(currency);
         token.transferFrom(msg.sender, this, amount);
+
+        rootChain.deposit(msg.sender, currency, amount);
+    }
+
+    function withdraw(
+        bytes prevTx,
+        bytes prevTxProof,
+        uint prevTxBlkNum,
+        bytes txRaw,
+        bytes txProof,
+        uint txBlkNum
+    ) public {
+        require(
+            rootChain.finishExit(
+                msg.sender,
+                prevTx,
+                prevTxProof,
+                prevTxBlkNum,
+                txRaw,
+                txProof,
+                txBlkNum
+            ) == true
+        );
     }
 }
