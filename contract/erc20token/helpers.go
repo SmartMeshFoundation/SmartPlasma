@@ -3,12 +3,11 @@ package erc20token
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/pkg/errors"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
-	"log"
 )
 
-// NewExampleTokenSession func
+// NewExampleTokenSession returns Token session
 func NewExampleTokenSession(account bind.TransactOpts, contact common.Address,
 	server backend.Backend) (*ExampleTokenSession, error) {
 	contract, err := NewExampleToken(contact, server.Connect())
@@ -26,59 +25,70 @@ func NewExampleTokenSession(account bind.TransactOpts, contact common.Address,
 	}, err
 }
 
-// Deploy func
+// Deploy deploys Token contract
 func Deploy(account *bind.TransactOpts,
-	server backend.Backend) (common.Address,
-	*types.Receipt, *ExampleToken, error) {
+	server backend.Backend) (common.Address, *ExampleToken, error) {
 	addr, tx, contract, err := DeployExampleToken(account,
 		server.Connect())
 	if err != nil {
-		return [20]byte{}, nil, nil, err
+		return common.Address{}, nil, err
 	}
 
-	tr, err := server.Mine(tx)
+	_, err = server.Mine(tx)
 	if err != nil {
-		return [20]byte{}, nil, nil, err
+		return common.Address{}, nil, err
 	}
 
-	return addr, tr, contract, nil
+	if !server.GoodTransaction(tx) {
+		return common.Address{}, nil,
+			errors.New("failed to deploy Token contract")
+	}
+
+	return addr, contract, nil
 }
 
-// LogsApproval func
-func LogsApproval(token *ExampleToken) {
-	iterator, err := token.FilterApproval(&bind.FilterOpts{},
+// LogsApproval returns approval logs
+func LogsApproval(token *ExampleToken) (logs []*ExampleTokenApproval,
+	err error) {
+	iterator, err2 := token.FilterApproval(&bind.FilterOpts{},
 		[]common.Address{}, []common.Address{})
-	if err != nil {
-		log.Fatal(err)
+	if err2 != nil {
+		err = err2
+		return
 	}
+
 	defer iterator.Close()
 
 	for iterator.Next() {
-		log.Printf("Owner: %s, Spender: %s, Value: %s",
-			iterator.Event.Owner.String(), iterator.Event.Spender.String(),
-			iterator.Event.Value.String())
+		logs = append(logs, iterator.Event)
 	}
 
-	if err := iterator.Error(); err != nil {
-		log.Fatal(err)
+	if err2 := iterator.Error(); err2 != nil {
+		err = err2
+		return
 	}
+	return
 }
 
-// LogsTransfer func
-func LogsTransfer(token *ExampleToken) {
-	iterator, err := token.FilterTransfer(&bind.FilterOpts{},
+// LogsTransfer returns transfer logs
+func LogsTransfer(token *ExampleToken) (logs []*ExampleTokenTransfer,
+	err error) {
+	iterator, err2 := token.FilterTransfer(&bind.FilterOpts{},
 		[]common.Address{}, []common.Address{})
-	if err != nil {
-		log.Fatal(err)
+	if err2 != nil {
+		err = err2
+		return
 	}
+
 	defer iterator.Close()
 
 	for iterator.Next() {
-		log.Printf("From: %s, To: %s, Value: %s", iterator.Event.From.String(),
-			iterator.Event.To.String(), iterator.Event.Value.String())
+		logs = append(logs, iterator.Event)
 	}
 
-	if err := iterator.Error(); err != nil {
-		log.Fatal(err)
+	if err2 := iterator.Error(); err2 != nil {
+		err = err2
+		return
 	}
+	return
 }

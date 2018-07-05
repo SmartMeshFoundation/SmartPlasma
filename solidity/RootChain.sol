@@ -4,6 +4,7 @@ import "./libraries/datastructures/Challenge.sol";
 import "./libraries/merkle.sol";
 import "./libraries/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./libraries/datastructures/Transaction.sol";
+import "./libraries/PlasmaLib.sol";
 
 contract RootChain is Ownable {
     using Challenge for Challenge.challenge[];
@@ -21,6 +22,9 @@ contract RootChain is Ownable {
     address public authority;
     uint public currentBlkNum;
     uint public depositCount;
+
+    // TODO: for test, in the future will be deleted
+    bytes32 id;
 
     mapping(uint => bytes32) public childChain;
     mapping(bytes32 => uint) public wallet;
@@ -45,14 +49,21 @@ contract RootChain is Ownable {
     function deposit(
         address account,
         address currency,
-        uint amount) public onlyOwner {
-
-        bytes32 uid = keccak256(
-            abi.encodePacked(currency, msg.sender, depositCount));
+        uint amount) public onlyOwner returns (bytes32){
+        bytes32 uid = PlasmaLib.generateUID(
+            account,
+            currency,
+            depositCount
+        );
         wallet[uid] = amount;
         depositCount += 1;
 
         emit Deposit(account, amount, uint256(uid));
+
+        // TODO: for test, in the future will be deleted
+        id = uid;
+
+        return uid;
     }
 
     function startExit(
@@ -114,7 +125,7 @@ contract RootChain is Ownable {
         uint prevTxBlkNum,
         bytes txRaw,
         bytes txProof,
-        uint txBlkNum) public onlyOwner returns (bool) {
+        uint txBlkNum) public onlyOwner returns (bytes32) {
 
 //        Transaction.Tx memory prevTxObj = prevTx.createTx();
 //        Transaction.Tx memory txObj = txRaw.createTx();
@@ -123,7 +134,7 @@ contract RootChain is Ownable {
 //        require(prevTxObj.uid == txObj.uid);
 //        require(prevTxObj.amount == txObj.amount);
 //        require(prevTxObj.newOwner == txObj.signer);
-//        require(msg.sender == txObj.newOwner);
+//        require(account == txObj.newOwner);
 //
 //        bytes32 prevMerkleHash = keccak256(prevTx);
 //        bytes32 prevRoot = childChain[prevTxBlkNum];
@@ -150,7 +161,8 @@ contract RootChain is Ownable {
 //        require(!exits[txObj.uid].transferred);
 //
 //        exits[txObj.uid].transferred = true;
-        return true;
+        // TODO: id for test, in the future will change
+        return id;
     }
 
     function challengeExit(

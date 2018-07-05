@@ -7,10 +7,14 @@ import (
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 	"github.com/smartmeshfoundation/smartplasma/contract/erc20token"
 	"github.com/smartmeshfoundation/smartplasma/contract/rootchain"
-	"log"
 	"math/big"
 	"os"
 	"testing"
+)
+
+const (
+	fakeString = "fake"
+	one        = 1
 )
 
 var (
@@ -24,6 +28,30 @@ var (
 	user2 *bind.TransactOpts
 )
 
+func deposit(t *testing.T, session *MediatorSession,
+	token common.Address, amount *big.Int) {
+	tx, err := session.Deposit(token, amount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !server.GoodTransaction(tx) {
+		t.Fatal("failed to deposit tokens")
+	}
+}
+
+func withdraw(t *testing.T, session *MediatorSession,
+	prevTx []byte, prevTxProof []byte, prevTxBlkNum *big.Int, txRaw []byte,
+	txProof []byte, txBlkNum *big.Int) {
+	tx, err := session.Withdraw(prevTx, prevTxProof, prevTxBlkNum, txRaw,
+		txProof, txBlkNum)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !server.GoodTransaction(tx) {
+		t.Fatal("failed to withdraw tokens")
+	}
+}
+
 func mint(t *testing.T, session *erc20token.ExampleTokenSession,
 	acc common.Address, val *big.Int) {
 	tx, err := session.Mint(acc, val)
@@ -32,6 +60,17 @@ func mint(t *testing.T, session *erc20token.ExampleTokenSession,
 	}
 	if !server.GoodTransaction(tx) {
 		t.Fatal("failed to mint tokens")
+	}
+}
+
+func increaseApproval(t *testing.T, session *erc20token.ExampleTokenSession,
+	spender common.Address, addedValue *big.Int) {
+	tx, err := session.IncreaseApproval(spender, addedValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !server.GoodTransaction(tx) {
+		t.Fatal("failed to approval tokens")
 	}
 }
 
@@ -47,131 +86,172 @@ func checkToken(t *testing.T, mediatorSession *MediatorSession,
 	}
 }
 
-func TestExit(t *testing.T) {
-	//TODO
+func tokenSession(t *testing.T, account *bind.TransactOpts,
+	contact common.Address) (session *erc20token.ExampleTokenSession) {
+	session, err := erc20token.NewExampleTokenSession(*account,
+		contact, server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return
 }
 
-func TestDeposit(t *testing.T) {
-	tokenAddr, _, token, err := erc20token.Deploy(owner, server)
+func rootChainSession(t *testing.T, account *bind.TransactOpts,
+	contact common.Address) (session *rootchain.RootChainSession) {
+	session, err := rootchain.NewRootChainSession(*account,
+		contact, server)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
+	return
+}
 
-	tokenOwnerSess, err := erc20token.NewExampleTokenSession(*owner,
-		tokenAddr, server)
+func mediatorSession(t *testing.T, account *bind.TransactOpts,
+	contact common.Address) (session *MediatorSession) {
+	session, err := NewMediatorSession(*account,
+		contact, server)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
+	return
+}
 
-	mint(t, tokenOwnerSess, user1.From, big.NewInt(1))
-
-	tokenUserSess, err := erc20token.NewExampleTokenSession(*user1,
-		tokenAddr, server)
+func deployToken(t *testing.T,
+	account *bind.TransactOpts) (address common.Address,
+	contract *erc20token.ExampleToken) {
+	address, contract, err := erc20token.Deploy(account, server)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
 	}
+	return
+}
 
-	tx, err := tokenUserSess.IncreaseApproval(mediatorAddr, big.NewInt(1))
+func deployMediator(account *bind.TransactOpts) (address common.Address,
+	contract *Mediator, err error) {
+	address, contract, err = Deploy(account, server)
+	return
+}
+
+func changeApproveState(t *testing.T,
+	session *erc20token.ExampleTokenSession) {
+	tx, err := session.ChangeApproveState()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !server.GoodTransaction(tx) {
-		t.Fatal("failed to approval tokens")
+		t.Fatal("failed to change Approve state")
 	}
+}
 
-	sessU1, err := NewMediatorSession(*user1, mediatorAddr, server)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	tx, err = sessU1.Deposit(tokenAddr, big.NewInt(1))
+func changeTransferFromState(t *testing.T,
+	session *erc20token.ExampleTokenSession) {
+	tx, err := session.ChangeTransferFromState()
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !server.GoodTransaction(tx) {
-		t.Fatal("failed to transfer tokens")
+		t.Fatal("failed to change TransferFrom state")
 	}
-
-	erc20token.LogsApproval(token)
-	erc20token.LogsTransfer(token)
-
-	rootSess, err := rootchain.NewRootChainSession(*user1, rootChainAddr, server)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	rootchain.LogsDeposit(rootSess.Contract)
 }
 
-func TestMediatorSession_CheckToken(t *testing.T) {
-	tokenAddr, _, _, err := erc20token.Deploy(owner, server)
+func TestMediatorWithdraw(t *testing.T) {
+	newInstance(t)
+
+	tokenAddr, token := deployToken(t, owner)
+
+	tokenOwnerSession := tokenSession(t, owner, tokenAddr)
+	tokenUserSession := tokenSession(t, user1, tokenAddr)
+	mediatorUserSession := mediatorSession(t, user1, mediatorAddr)
+
+	mint(t, tokenOwnerSession, user1.From, big.NewInt(one))
+	increaseApproval(t, tokenUserSession, mediatorAddr, big.NewInt(one))
+
+	deposit(t, mediatorUserSession, tokenAddr, big.NewInt(one))
+
+	withdraw(t, mediatorUserSession, []byte(fakeString),
+		[]byte(fakeString), big.NewInt(one), []byte(fakeString),
+		[]byte(fakeString), big.NewInt(one))
+
+	logs, err := erc20token.LogsTransfer(token)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal("failed to parse transfer logs")
 	}
 
-	sessU1, err := NewMediatorSession(*user1, mediatorAddr, server)
-	if err != nil {
-		log.Fatal(err)
+	if len(logs) != 3 {
+		t.Fatal("invalid number of transfer transactions")
 	}
+}
 
-	tokenSess, err := erc20token.NewExampleTokenSession(*owner,
-		tokenAddr, server)
+func TestMediatorDeposit(t *testing.T) {
+	newInstance(t)
+
+	tokenAddr, _ := deployToken(t, owner)
+
+	tokenOwnerSession := tokenSession(t, owner, tokenAddr)
+	tokenUserSession := tokenSession(t, user1, tokenAddr)
+	mediatorUserSession := mediatorSession(t, user1, mediatorAddr)
+
+	mint(t, tokenOwnerSession, user1.From, big.NewInt(one))
+
+	increaseApproval(t, tokenUserSession, mediatorAddr, big.NewInt(one))
+
+	deposit(t, mediatorUserSession, tokenAddr, big.NewInt(one))
+
+	rootSession := rootChainSession(t, user1, rootChainAddr)
+
+	logs, err := rootchain.LogsDeposit(rootSession.Contract)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal("failed to parse deposit logs")
 	}
+	if len(logs) != 1 {
+		t.Fatal("invalid number of deposit transactions")
+	}
+}
+
+func TestMediatorCheckToken(t *testing.T) {
+	newInstance(t)
+
+	tokenAddr, _ := deployToken(t, owner)
+	tokenOwnerSession := tokenSession(t, owner, tokenAddr)
+	mediatorUserSession := mediatorSession(t, user1, mediatorAddr)
 
 	// checkToken test1
-	checkToken(t, sessU1, tokenAddr, false)
-
-	mint(t, tokenSess, user2.From, big.NewInt(1))
-
-	checkToken(t, sessU1, tokenAddr, false)
+	checkToken(t, mediatorUserSession, tokenAddr, false)
+	mint(t, tokenOwnerSession, user2.From, big.NewInt(1))
+	checkToken(t, mediatorUserSession, tokenAddr, false)
 
 	// checkToken test2
-	mint(t, tokenSess, user1.From, big.NewInt(1))
-	checkToken(t, sessU1, tokenAddr, true)
+	mint(t, tokenOwnerSession, user1.From, big.NewInt(1))
+	checkToken(t, mediatorUserSession, tokenAddr, true)
 
 	// checkToken test3
 	// checkToken test4
-	tx, err := tokenSess.ChangeApproveState()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !server.GoodTransaction(tx) {
-		t.Fatal("failed to mint tokens")
-	}
-
-	checkToken(t, sessU1, tokenAddr, false)
-
-	tx, err = tokenSess.ChangeApproveState()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !server.GoodTransaction(tx) {
-		t.Fatal("failed to mint tokens")
-	}
+	changeApproveState(t, tokenOwnerSession)
+	checkToken(t, mediatorUserSession, tokenAddr, false)
+	changeApproveState(t, tokenOwnerSession)
 
 	// checkToken test5
-	tx, err = tokenSess.ChangeTransferFromState()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !server.GoodTransaction(tx) {
-		t.Fatal("failed to mint tokens")
-	}
+	changeTransferFromState(t, tokenOwnerSession)
+	checkToken(t, mediatorUserSession, tokenAddr, false)
 
-	checkToken(t, sessU1, tokenAddr, false)
-
-	tx, err = tokenSess.ChangeTransferFromState()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !server.GoodTransaction(tx) {
-		t.Fatal("failed to mint tokens")
-	}
+	changeTransferFromState(t, tokenOwnerSession)
 
 	// normal flow
-	checkToken(t, sessU1, tokenAddr, true)
+	checkToken(t, mediatorUserSession, tokenAddr, true)
+}
+
+func newInstance(t *testing.T) {
+	address, mediator, err := deployMediator(owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mediatorAddr = address
+
+	rootChainAddr, err = mediator.RootChain(&bind.CallOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestMain(m *testing.M) {
@@ -180,26 +260,7 @@ func TestMain(m *testing.M) {
 	user1 = accounts[1]
 	user2 = accounts[2]
 
-	log.Printf("Owner: %s", owner.From.String())
-	log.Printf("User1: %s", user1.From.String())
-	log.Printf("User2: %s", user2.From.String())
-
 	server = backend.NewSimulatedBackend(account.Addresses(accounts))
-
-	address, tr, mediator, err := Deploy(owner, server)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if tr.Status != 1 {
-		log.Fatal("mediator contract not deployed")
-	}
-
-	mediatorAddr = address
-	rootChainAddr, err = mediator.RootChain(&bind.CallOpts{})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	os.Exit(m.Run())
 }

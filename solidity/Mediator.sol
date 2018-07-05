@@ -23,6 +23,14 @@ contract Mediator is Ownable {
 
     RootChain public rootChain;
 
+    // TODO public
+    mapping(bytes32 => entry) public cash;
+
+    struct entry {
+        address currency;
+        uint amount;
+    }
+
     constructor() public {
         rootChain = new RootChain();
     }
@@ -45,7 +53,12 @@ contract Mediator is Ownable {
         Token token = Token(currency);
         token.transferFrom(msg.sender, this, amount);
 
-        rootChain.deposit(msg.sender, currency, amount);
+        bytes32 uid = rootChain.deposit(msg.sender, currency, amount);
+        //bytes32 uid = bytes32(68058628839547882372159074489272839809647371784161115224315826187595016045308);
+        cash[uid] = entry({
+            currency: currency,
+            amount: amount
+        });
     }
 
     function withdraw(
@@ -56,16 +69,20 @@ contract Mediator is Ownable {
         bytes txProof,
         uint txBlkNum
     ) public {
-        require(
-            rootChain.finishExit(
-                msg.sender,
-                prevTx,
-                prevTxProof,
-                prevTxBlkNum,
-                txRaw,
-                txProof,
-                txBlkNum
-            ) == true
+        bytes32 uid = rootChain.finishExit(
+            msg.sender,
+            prevTx,
+            prevTxProof,
+            prevTxBlkNum,
+            txRaw,
+            txProof,
+            txBlkNum
         );
+
+        entry deposit = cash[uid];
+
+        Token token = Token(deposit.currency);
+        token.transfer(msg.sender, deposit.amount);
+        delete(cash[uid]);
     }
 }

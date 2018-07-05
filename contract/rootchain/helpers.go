@@ -3,12 +3,11 @@ package rootchain
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/pkg/errors"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
-	"log"
 )
 
-// NewRootChainSession func
+// NewRootChainSession returns RootChain session
 func NewRootChainSession(account bind.TransactOpts, contact common.Address,
 	server backend.Backend) (*RootChainSession, error) {
 	contract, err := NewRootChain(contact, server.Connect())
@@ -26,39 +25,46 @@ func NewRootChainSession(account bind.TransactOpts, contact common.Address,
 	}, err
 }
 
-// Deploy func
+// Deploy deploys RootChain contract
 func Deploy(account *bind.TransactOpts,
-	server backend.Backend) (common.Address,
-	*types.Receipt, *RootChain, error) {
+	server backend.Backend) (common.Address, *RootChain, error) {
 	addr, tx, contract, err := DeployRootChain(account,
 		server.Connect())
 	if err != nil {
-		return [20]byte{}, nil, nil, err
+		return common.Address{}, nil, err
 	}
 
-	tr, err := server.Mine(tx)
+	_, err = server.Mine(tx)
 	if err != nil {
-		return [20]byte{}, nil, nil, err
+		return common.Address{}, nil, err
 	}
 
-	return addr, tr, contract, nil
+	if !server.GoodTransaction(tx) {
+		return common.Address{}, nil,
+			errors.New("failed to deploy RootChain contract")
+	}
+
+	return addr, contract, nil
 }
 
-// LogsDeposit func
-func LogsDeposit(rootchain *RootChain) {
-	iterator, err := rootchain.FilterDeposit(&bind.FilterOpts{})
-	if err != nil {
-		log.Fatal(err)
+// LogsDeposit returns deposit logs
+func LogsDeposit(contract *RootChain) (logs []*RootChainDeposit, err error) {
+	iterator, err2 := contract.FilterDeposit(&bind.FilterOpts{})
+	if err2 != nil {
+		err = err2
+		return
 	}
+
 	defer iterator.Close()
 
 	for iterator.Next() {
-		log.Printf("Depositor: %s, Amount: %s, Uid: %s",
-			iterator.Event.Depositor.String(), iterator.Event.Amount.String(),
-			iterator.Event.Uid.String())
+		logs = append(logs, iterator.Event)
 	}
 
-	if err := iterator.Error(); err != nil {
-		log.Fatal(err)
+	if err2 := iterator.Error(); err2 != nil {
+		err = err2
+		return
 	}
+
+	return
 }
