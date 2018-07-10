@@ -51,10 +51,9 @@ contract Mediator is Ownable {
         require(amount > 0);
 
         Token token = Token(currency);
-        token.transferFrom(msg.sender, this, amount);
+        token.transferFrom(msg.sender, this, amount); // deposit test1
 
-        bytes32 uid = rootChain.deposit(msg.sender, currency, amount);
-        //bytes32 uid = bytes32(68058628839547882372159074489272839809647371784161115224315826187595016045308);
+        bytes32 uid = rootChain.deposit(msg.sender, currency, amount); // deposit test2
         cash[uid] = entry({
             currency: currency,
             amount: amount
@@ -82,7 +81,7 @@ contract Mediator is Ownable {
         entry deposit = cash[uid];
 
         Token token = Token(deposit.currency);
-        token.transfer(msg.sender, deposit.amount);
-        delete(cash[uid]);
+        token.transfer(msg.sender, deposit.amount); // withdraw test 1
+        delete(cash[uid]); // withdraw test 2
     }
 }

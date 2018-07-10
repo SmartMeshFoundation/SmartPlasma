@@ -29,11 +29,18 @@ var (
 )
 
 func deposit(t *testing.T, session *MediatorSession,
-	token common.Address, amount *big.Int) {
+	token common.Address, amount *big.Int, executable bool) {
 	tx, err := session.Deposit(token, amount)
+	if !executable {
+		if err == nil {
+			t.Fatal("It should not be executed")
+		}
+		return
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if !server.GoodTransaction(tx) {
 		t.Fatal("failed to deposit tokens")
 	}
@@ -41,9 +48,15 @@ func deposit(t *testing.T, session *MediatorSession,
 
 func withdraw(t *testing.T, session *MediatorSession,
 	prevTx []byte, prevTxProof []byte, prevTxBlkNum *big.Int, txRaw []byte,
-	txProof []byte, txBlkNum *big.Int) {
+	txProof []byte, txBlkNum *big.Int, executable bool) {
 	tx, err := session.Withdraw(prevTx, prevTxProof, prevTxBlkNum, txRaw,
 		txProof, txBlkNum)
+	if !executable {
+		if err == nil {
+			t.Fatal("It should not be executed")
+		}
+		return
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,12 +179,12 @@ func TestMediatorWithdraw(t *testing.T) {
 	mint(t, tokenOwnerSession, user1.From, big.NewInt(one))
 	increaseApproval(t, tokenUserSession, mediatorAddr, big.NewInt(one))
 
-	deposit(t, mediatorUserSession, tokenAddr, big.NewInt(one))
-
+	deposit(t, mediatorUserSession, tokenAddr, big.NewInt(one), true)
 	withdraw(t, mediatorUserSession, []byte(fakeString),
 		[]byte(fakeString), big.NewInt(one), []byte(fakeString),
-		[]byte(fakeString), big.NewInt(one))
+		[]byte(fakeString), big.NewInt(one), true)
 
+	// withdraw test 1
 	logs, err := erc20token.LogsTransfer(token)
 	if err != nil {
 		t.Fatal("failed to parse transfer logs")
@@ -180,6 +193,16 @@ func TestMediatorWithdraw(t *testing.T) {
 	if len(logs) != 3 {
 		t.Fatal("invalid number of transfer transactions")
 	}
+	if logs[2].From.String() != mediatorAddr.String() ||
+		logs[2].To.String() != user1.From.String() ||
+		logs[2].Value.String() != big.NewInt(one).String() {
+		t.Fatal("invalid withdraw")
+	}
+
+	// withdraw test 2
+	withdraw(t, mediatorUserSession, []byte(fakeString),
+		[]byte(fakeString), big.NewInt(one), []byte(fakeString),
+		[]byte(fakeString), big.NewInt(one), false)
 }
 
 func TestMediatorDeposit(t *testing.T) {
@@ -191,14 +214,15 @@ func TestMediatorDeposit(t *testing.T) {
 	tokenUserSession := tokenSession(t, user1, tokenAddr)
 	mediatorUserSession := mediatorSession(t, user1, mediatorAddr)
 
+	// deposit test1
+	deposit(t, mediatorUserSession, tokenAddr, big.NewInt(one), false)
 	mint(t, tokenOwnerSession, user1.From, big.NewInt(one))
-
 	increaseApproval(t, tokenUserSession, mediatorAddr, big.NewInt(one))
-
-	deposit(t, mediatorUserSession, tokenAddr, big.NewInt(one))
+	deposit(t, mediatorUserSession, tokenAddr, big.NewInt(one), true)
 
 	rootSession := rootChainSession(t, user1, rootChainAddr)
 
+	// deposit test2
 	logs, err := rootchain.LogsDeposit(rootSession.Contract)
 	if err != nil {
 		t.Fatal("failed to parse deposit logs")
