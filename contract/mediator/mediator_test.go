@@ -168,6 +168,7 @@ func changeTransferFromState(t *testing.T,
 }
 
 func TestMediatorWithdraw(t *testing.T) {
+	// TODO: to refactor after RootChain implementation
 	newInstance(t)
 
 	tokenAddr, token := deployToken(t, owner)
@@ -206,6 +207,7 @@ func TestMediatorWithdraw(t *testing.T) {
 }
 
 func TestMediatorDeposit(t *testing.T) {
+	// TODO: to refactor after RootChain implementation
 	newInstance(t)
 
 	tokenAddr, _ := deployToken(t, owner)

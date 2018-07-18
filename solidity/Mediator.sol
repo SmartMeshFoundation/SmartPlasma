@@ -23,8 +23,7 @@ contract Mediator is Ownable {
 
     RootChain public rootChain;
 
-    // TODO public
-    mapping(bytes32 => entry) public cash;
+    mapping(bytes32 => entry) cash;
 
     struct entry {
         address currency;

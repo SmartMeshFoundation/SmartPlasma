@@ -5,7 +5,7 @@ pragma solidity ^0.4.23;
 *
 * Challenge is used to constructe challenge.
 */
-// TODO challenge array to change to another structure
+// TODO: challenge array to change to another structure
 library Challenge {
     struct challenge {
         bool hasValue;

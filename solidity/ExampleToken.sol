@@ -31,7 +31,7 @@ contract ExampleToken is MintableToken {
 
     }
 
-    // TODO: for test
+    // if changeApproveState == true then approve and increaseApproval not work
     function changeApproveState() public {
         if (disableApprove) {
             disableApprove = false;
@@ -40,7 +40,7 @@ contract ExampleToken is MintableToken {
         }
     }
 
-    // TODO: for test
+    // if disableTransferFrom == true then transferFrom not work
     function changeTransferFromState() public {
         if (disableTransferFrom) {
             disableTransferFrom = false;
