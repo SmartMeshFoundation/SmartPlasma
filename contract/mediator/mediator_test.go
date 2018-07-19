@@ -21,12 +21,37 @@ var (
 	server        backend.Backend
 	accounts      []*bind.TransactOpts
 	mediatorAddr  common.Address
+	tokenAddr     common.Address
 	rootChainAddr common.Address
 
 	owner *bind.TransactOpts
 	user1 *bind.TransactOpts
 	user2 *bind.TransactOpts
+
+	tokenOwnerSession   *erc20token.ExampleTokenSession
+	tokenUserSession    *erc20token.ExampleTokenSession
+	mediatorUserSession *MediatorSession
 )
+
+func newInstance(t *testing.T) {
+	address, mediator, err := deployMediator(owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mediatorAddr = address
+
+	rootChainAddr, err = mediator.RootChain(&bind.CallOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tokenAddr, _ = deployToken(t, owner)
+
+	tokenOwnerSession = tokenSession(t, owner, tokenAddr)
+	tokenUserSession = tokenSession(t, user1, tokenAddr)
+	mediatorUserSession = mediatorSession(t, user1, mediatorAddr)
+}
 
 func deposit(t *testing.T, session *MediatorSession,
 	token common.Address, amount *big.Int, executable bool) {
@@ -171,12 +196,6 @@ func TestMediatorWithdraw(t *testing.T) {
 	// TODO: to refactor after RootChain implementation
 	newInstance(t)
 
-	tokenAddr, token := deployToken(t, owner)
-
-	tokenOwnerSession := tokenSession(t, owner, tokenAddr)
-	tokenUserSession := tokenSession(t, user1, tokenAddr)
-	mediatorUserSession := mediatorSession(t, user1, mediatorAddr)
-
 	mint(t, tokenOwnerSession, user1.From, big.NewInt(one))
 	increaseApproval(t, tokenUserSession, mediatorAddr, big.NewInt(one))
 
@@ -186,7 +205,7 @@ func TestMediatorWithdraw(t *testing.T) {
 		[]byte(fakeString), big.NewInt(one), true)
 
 	// withdraw test 1
-	logs, err := erc20token.LogsTransfer(token)
+	logs, err := erc20token.LogsTransfer(tokenOwnerSession.Contract)
 	if err != nil {
 		t.Fatal("failed to parse transfer logs")
 	}
@@ -210,12 +229,6 @@ func TestMediatorDeposit(t *testing.T) {
 	// TODO: to refactor after RootChain implementation
 	newInstance(t)
 
-	tokenAddr, _ := deployToken(t, owner)
-
-	tokenOwnerSession := tokenSession(t, owner, tokenAddr)
-	tokenUserSession := tokenSession(t, user1, tokenAddr)
-	mediatorUserSession := mediatorSession(t, user1, mediatorAddr)
-
 	// deposit test1
 	deposit(t, mediatorUserSession, tokenAddr, big.NewInt(one), false)
 	mint(t, tokenOwnerSession, user1.From, big.NewInt(one))
@@ -236,10 +249,6 @@ func TestMediatorDeposit(t *testing.T) {
 
 func TestMediatorCheckToken(t *testing.T) {
 	newInstance(t)
-
-	tokenAddr, _ := deployToken(t, owner)
-	tokenOwnerSession := tokenSession(t, owner, tokenAddr)
-	mediatorUserSession := mediatorSession(t, user1, mediatorAddr)
 
 	// checkToken test1
 	checkToken(t, mediatorUserSession, tokenAddr, false)
@@ -264,20 +273,6 @@ func TestMediatorCheckToken(t *testing.T) {
 
 	// normal flow
 	checkToken(t, mediatorUserSession, tokenAddr, true)
-}
-
-func newInstance(t *testing.T) {
-	address, mediator, err := deployMediator(owner)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mediatorAddr = address
-
-	rootChainAddr, err = mediator.RootChain(&bind.CallOpts{})
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestMain(m *testing.M) {
