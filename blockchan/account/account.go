@@ -2,10 +2,11 @@ package account
 
 import (
 	"crypto/ecdsa"
+	"log"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"log"
 )
 
 // GenKey makes new private key

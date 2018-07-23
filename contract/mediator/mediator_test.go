@@ -1,15 +1,17 @@
 package mediator
 
 import (
+	"math/big"
+	"os"
+	"testing"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 	"github.com/smartmeshfoundation/smartplasma/contract/erc20token"
 	"github.com/smartmeshfoundation/smartplasma/contract/rootchain"
-	"math/big"
-	"os"
-	"testing"
 )
 
 const (
