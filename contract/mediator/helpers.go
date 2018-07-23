@@ -8,7 +8,7 @@ import (
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 )
 
-// NewMediatorSession returns Mediator session
+// NewMediatorSession returns Mediator session.
 func NewMediatorSession(account bind.TransactOpts, contact common.Address,
 	server backend.Backend) (*MediatorSession, error) {
 	contract, err := NewMediator(contact, server.Connect())
@@ -26,7 +26,7 @@ func NewMediatorSession(account bind.TransactOpts, contact common.Address,
 	}, err
 }
 
-// Deploy deploys Mediator contract
+// Deploy deploys Mediator contract.
 func Deploy(account *bind.TransactOpts,
 	server backend.Backend) (common.Address, *Mediator, error) {
 	addr, tx, contract, err := DeployMediator(account, server.Connect())

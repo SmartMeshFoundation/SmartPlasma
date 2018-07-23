@@ -8,7 +8,7 @@ import (
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 )
 
-// NewExampleTokenSession returns Token session
+// NewExampleTokenSession returns Token session.
 func NewExampleTokenSession(account bind.TransactOpts, contact common.Address,
 	server backend.Backend) (*ExampleTokenSession, error) {
 	contract, err := NewExampleToken(contact, server.Connect())
@@ -26,7 +26,7 @@ func NewExampleTokenSession(account bind.TransactOpts, contact common.Address,
 	}, err
 }
 
-// Deploy deploys Token contract
+// Deploy deploys Token contract.
 func Deploy(account *bind.TransactOpts,
 	server backend.Backend) (common.Address, *ExampleToken, error) {
 	addr, tx, contract, err := DeployExampleToken(account,
@@ -48,7 +48,7 @@ func Deploy(account *bind.TransactOpts,
 	return addr, contract, nil
 }
 
-// LogsApproval returns approval logs
+// LogsApproval returns approval logs.
 func LogsApproval(token *ExampleToken) (logs []*ExampleTokenApproval,
 	err error) {
 	iterator, err2 := token.FilterApproval(&bind.FilterOpts{},
@@ -71,7 +71,7 @@ func LogsApproval(token *ExampleToken) (logs []*ExampleTokenApproval,
 	return
 }
 
-// LogsTransfer returns transfer logs
+// LogsTransfer returns transfer logs.
 func LogsTransfer(token *ExampleToken) (logs []*ExampleTokenTransfer,
 	err error) {
 	iterator, err2 := token.FilterTransfer(&bind.FilterOpts{},

@@ -16,7 +16,7 @@ const (
 	rinkeby = "https://rinkeby.infura.io/nanodzeck"
 )
 
-// Backend interface
+// Backend interface.
 type Backend interface {
 	Connect() bind.ContractBackend
 	Mine(tx *types.Transaction) (*types.Receipt, error)
@@ -27,7 +27,7 @@ type backend struct {
 	connect bind.ContractBackend
 }
 
-// NewBackend makes new Backend
+// NewBackend makes new Backend.
 func NewBackend() Backend {
 	cli, err := ethclient.Dial(rinkeby)
 	if err != nil {
@@ -36,17 +36,17 @@ func NewBackend() Backend {
 	return &backend{connect: cli}
 }
 
-// NewSimulatedBackend makes new backend simulator
+// NewSimulatedBackend makes new backend simulator.
 func NewSimulatedBackend(accounts []common.Address) Backend {
 	return &backend{connect: newSimulator(accounts)}
 }
 
-// Connect gets connect to Ethereum backend
+// Connect gets connect to Ethereum backend.
 func (back *backend) Connect() bind.ContractBackend {
 	return back.connect
 }
 
-// Mine to wait mining
+// Mine to wait mining.
 func (back *backend) Mine(tx *types.Transaction) (*types.Receipt, error) {
 	switch conn := back.connect.(type) {
 	case *ethclient.Client:
@@ -58,7 +58,7 @@ func (back *backend) Mine(tx *types.Transaction) (*types.Receipt, error) {
 	return nil, errors.New("backend is wrong")
 }
 
-// GoodTransaction returns true if transaction status = 1
+// GoodTransaction returns true if transaction status = 1.
 func (back *backend) GoodTransaction(tx *types.Transaction) bool {
 	tr, err := back.Mine(tx)
 	if err != nil {

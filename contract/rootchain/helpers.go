@@ -8,7 +8,7 @@ import (
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 )
 
-// NewRootChainSession returns RootChain session
+// NewRootChainSession returns RootChain session.
 func NewRootChainSession(account bind.TransactOpts, contact common.Address,
 	server backend.Backend) (*RootChainSession, error) {
 	contract, err := NewRootChain(contact, server.Connect())
@@ -26,7 +26,7 @@ func NewRootChainSession(account bind.TransactOpts, contact common.Address,
 	}, err
 }
 
-// Deploy deploys RootChain contract
+// Deploy deploys RootChain contract.
 func Deploy(account *bind.TransactOpts,
 	server backend.Backend) (common.Address, *RootChain, error) {
 	addr, tx, contract, err := DeployRootChain(account,
@@ -48,12 +48,12 @@ func Deploy(account *bind.TransactOpts,
 	return addr, contract, nil
 }
 
-// LogsDeposit returns deposit logs
+// LogsDeposit returns deposit logs.
 func LogsDeposit(contract *RootChain) (logs []*RootChainDeposit, err error) {
 	iterator, err2 := contract.FilterDeposit(&bind.FilterOpts{})
 	if err2 != nil {
 		err = err2
-		return
+		return logs, err
 	}
 
 	defer iterator.Close()
@@ -64,8 +64,8 @@ func LogsDeposit(contract *RootChain) (logs []*RootChainDeposit, err error) {
 
 	if err2 := iterator.Error(); err2 != nil {
 		err = err2
-		return
+		return logs, err
 	}
 
-	return
+	return logs, err
 }

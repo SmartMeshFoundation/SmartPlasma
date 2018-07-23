@@ -77,10 +77,10 @@ contract Mediator is Ownable {
             txProof,
             txBlkNum);
 
-        entry deposit = cash[uid];
+        entry invoice = cash[uid];
 
-        Token token = Token(deposit.currency);
-        token.transfer(msg.sender, deposit.amount); // withdraw test 1
+        Token token = Token(invoice.currency);
+        token.transfer(msg.sender, invoice.amount); // withdraw test 1
 
         delete(cash[uid]); // withdraw test 2
     }
