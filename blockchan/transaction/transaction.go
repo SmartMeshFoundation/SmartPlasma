@@ -3,6 +3,7 @@ package transaction
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,11 +28,7 @@ type txData struct {
 	UID       *big.Int       `json:"uid"`
 	Amount    *big.Int       `json:"amount"`
 	NewOwner  common.Address `json:"newOwner"`
-
-	// Signature values
-	V *big.Int `json:"v"`
-	R *big.Int `json:"r"`
-	S *big.Int `json:"s"`
+	Sig       []byte         `json:"sig"`
 }
 
 // NewTransaction creates new unsigned transaction.
@@ -62,7 +59,6 @@ func (tx *Transaction) Hash() common.Hash {
 		tx.data.UID,
 		tx.data.Amount,
 		tx.data.NewOwner,
-		uint(0), uint(0), uint(0),
 	})
 }
 
@@ -90,20 +86,30 @@ func (tx *Transaction) SignTx(key *ecdsa.PrivateKey) (*Transaction, error) {
 
 // WithSignature returns a new transaction with the given signature.
 func (tx *Transaction) WithSignature(sig []byte) (*Transaction, error) {
-	r, s, v, err := SignatureValues(sig)
-	if err != nil {
-		return nil, err
-	}
 	cpy := &Transaction{data: tx.data}
-	cpy.data.R, cpy.data.S, cpy.data.V = r, s, v
+	cpy.data.Sig = sig
 	return cpy, nil
+}
+
+// EncodeRLP implements rlp.Encoder
+func (tx *Transaction) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, &tx.data)
+}
+
+// DecodeRLP implements rlp.Decoder
+func DecodeRLP(r io.Reader, tx *Transaction) error {
+	return rlp.Decode(r, &tx.data)
 }
 
 // Sender returns the address derived from the signature (V, R, S) using
 // secp256k1 elliptic curve and an error if it failed deriving
 // or upon an incorrect signature.
 func Sender(tx *Transaction) (common.Address, error) {
-	return recoverPlain(tx.Hash(), tx.data.R, tx.data.S, tx.data.V)
+	r, s, v, err := SignatureValues(tx.data.Sig)
+	if err != nil {
+		return common.Address{}, err
+	}
+	return recoverPlain(tx.Hash(), r, s, v)
 }
 
 func recoverPlain(sighash common.Hash, R, S,
