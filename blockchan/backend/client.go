@@ -55,7 +55,7 @@ func (back *backend) Mine(tx *types.Transaction) (*types.Receipt, error) {
 		conn.Commit()
 		return bind.WaitMined(context.Background(), conn, tx)
 	}
-	return nil, errors.New("backend is wrong")
+	return nil, errors.New("unsupported backend")
 }
 
 // GoodTransaction returns true if transaction status = 1.
