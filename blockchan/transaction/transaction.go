@@ -65,9 +65,8 @@ func (tx *Transaction) Hash() common.Hash {
 // SignatureValues returns signature values.
 func SignatureValues(sig []byte) (r, s, v *big.Int, err error) {
 	if len(sig) != 65 {
-		return nil, nil, nil, errors.New(
-			fmt.Sprintf("wrong size for signature:"+
-				" got %d, want 65", len(sig)))
+		return nil, nil, nil, fmt.Errorf("wrong size for signature:"+
+			" got %d, want 65", len(sig))
 	}
 	r = new(big.Int).SetBytes(sig[:32])
 	s = new(big.Int).SetBytes(sig[32:64])
