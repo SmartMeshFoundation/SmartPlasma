@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"bytes"
+	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -11,7 +12,27 @@ import (
 var (
 	dummyVal = common.BytesToHash(genHash("\x01"))
 	emptyVal = common.Hash{}
+
+	uid0 = big.NewInt(0)
+	uid1 = big.NewInt(1)
+	uid2 = big.NewInt(2)
+	uid3 = big.NewInt(3)
+
+	uidMax = new(big.Int).Sub(new(big.Int).Exp(big.NewInt(2),
+		big.NewInt(256), nil), big.NewInt(1))
+
+	depth3   = big.NewInt(3)
+	depth257 = big.NewInt(257)
 )
+
+func testTree(t *testing.T, leaves map[string]common.Hash,
+	depth *big.Int) *Tree {
+	tree, err := NewTree(leaves, depth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tree
+}
 
 func genHash(pattern string) []byte {
 	var hash []byte
@@ -23,46 +44,42 @@ func genHash(pattern string) []byte {
 }
 
 func TestNewTreeAllLeaves(t *testing.T) {
-	leaves := map[int]common.Hash{0: dummyVal, 1: dummyVal, 2: dummyVal,
-		3: dummyVal}
-
-	tree, err := NewTree(leaves, 3)
-	if err != nil {
-		t.Fatal(err)
+	leaves := map[string]common.Hash{
+		uid0.String(): dummyVal,
+		uid1.String(): dummyVal,
+		uid2.String(): dummyVal,
+		uid3.String(): dummyVal,
 	}
+
+	tree := testTree(t, leaves, depth3)
 
 	midLevelVal := crypto.Keccak256Hash(dummyVal.Bytes(), dummyVal.Bytes())
 
-	result := crypto.Keccak256Hash(midLevelVal.Bytes(), midLevelVal.Bytes())
-
-	if !bytes.Equal(tree.root.Bytes(), result.Bytes()) {
+	if !bytes.Equal(tree.root.Bytes(), crypto.Keccak256Hash(
+		midLevelVal.Bytes(), midLevelVal.Bytes()).Bytes()) {
 		t.Fatal("hashes not equal")
 	}
 }
 
 func TestNewTreeEmptyLeaves(t *testing.T) {
-	tree, err := NewTree(nil, 3)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tree := testTree(t, nil, depth3)
 
 	midLevelVal := crypto.Keccak256Hash(emptyVal.Bytes(), emptyVal.Bytes())
 
-	result := crypto.Keccak256Hash(midLevelVal.Bytes(), midLevelVal.Bytes())
-
-	if !bytes.Equal(tree.root.Bytes(), result.Bytes()) {
+	if !bytes.Equal(tree.root.Bytes(), crypto.Keccak256Hash(
+		midLevelVal.Bytes(), midLevelVal.Bytes()).Bytes()) {
 		t.Fatal("hashes not equal")
 	}
 }
 
 func TestNewTreeEmptyLeftLeave(t *testing.T) {
-	leaves := map[int]common.Hash{1: dummyVal, 2: dummyVal,
-		3: dummyVal}
-
-	tree, err := NewTree(leaves, 3)
-	if err != nil {
-		t.Fatal(err)
+	leaves := map[string]common.Hash{
+		uid1.String(): dummyVal,
+		uid2.String(): dummyVal,
+		uid3.String(): dummyVal,
 	}
+
+	tree := testTree(t, leaves, depth3)
 
 	midLeftVal := crypto.Keccak256Hash(emptyVal.Bytes(), dummyVal.Bytes())
 	midRightVal := crypto.Keccak256Hash(dummyVal.Bytes(), dummyVal.Bytes())
@@ -75,45 +92,50 @@ func TestNewTreeEmptyLeftLeave(t *testing.T) {
 }
 
 func TestNewTreeEmptyRightLeave(t *testing.T) {
-	leaves := map[int]common.Hash{0: dummyVal, 2: dummyVal,
-		3: dummyVal}
-
-	tree, err := NewTree(leaves, 3)
-	if err != nil {
-		t.Fatal(err)
+	leaves := map[string]common.Hash{
+		uid0.String(): dummyVal,
+		uid2.String(): dummyVal,
+		uid3.String(): dummyVal,
 	}
+
+	tree := testTree(t, leaves, depth3)
 
 	midLeftVal := crypto.Keccak256Hash(dummyVal.Bytes(), emptyVal.Bytes())
 	midRightVal := crypto.Keccak256Hash(dummyVal.Bytes(), dummyVal.Bytes())
 
-	result := crypto.Keccak256Hash(midLeftVal.Bytes(), midRightVal.Bytes())
-
-	if !bytes.Equal(tree.root.Bytes(), result.Bytes()) {
+	if !bytes.Equal(tree.root.Bytes(), crypto.Keccak256Hash(midLeftVal.Bytes(),
+		midRightVal.Bytes()).Bytes()) {
 		t.Fatal("hashes not equal")
 	}
 }
 
 func TestExceedTreeSize(t *testing.T) {
-	leaves := map[int]common.Hash{0: {}, 1: {}}
-	_, err := NewTree(leaves, 1)
+	leaves := map[string]common.Hash{
+		uid0.String(): dummyVal,
+		uid1.String(): dummyVal,
+	}
+	_, err := NewTree(leaves, big.NewInt(1))
 	if err == nil {
 		t.Fatal("expect not null error")
 	}
 }
 
 func TestCreateProof(t *testing.T) {
-	leaves := map[int]common.Hash{0: dummyVal, 2: dummyVal,
-		3: dummyVal}
-	tree, err := NewTree(leaves, 3)
-	if err != nil {
-		t.Fatal(err)
+	leaves := map[string]common.Hash{
+		uid0.String(): dummyVal,
+		uid2.String(): dummyVal,
+		uid3.String(): dummyVal,
 	}
+
+	tree := testTree(t, leaves, depth3)
+
 	midLeftVal := crypto.Keccak256Hash(dummyVal.Bytes(), emptyVal.Bytes())
 	midRightVal := crypto.Keccak256Hash(dummyVal.Bytes(), dummyVal.Bytes())
-	proof1 := CreateProof(0, 3, tree.tree, tree.defaultNodes)
-	proof2 := CreateProof(1, 3, tree.tree, tree.defaultNodes)
-	proof3 := CreateProof(2, 3, tree.tree, tree.defaultNodes)
-	proof4 := CreateProof(3, 3, tree.tree, tree.defaultNodes)
+
+	proof1 := CreateProof(uid0, depth3, tree.tree, tree.defaultNodes)
+	proof2 := CreateProof(uid1, depth3, tree.tree, tree.defaultNodes)
+	proof3 := CreateProof(uid2, depth3, tree.tree, tree.defaultNodes)
+	proof4 := CreateProof(uid3, depth3, tree.tree, tree.defaultNodes)
 
 	if !bytes.Equal(proof1, append(emptyVal.Bytes(), midRightVal.Bytes()...)) {
 		t.Fatal("hashes not equal")
@@ -129,4 +151,20 @@ func TestCreateProof(t *testing.T) {
 	if !bytes.Equal(proof4, append(dummyVal.Bytes(), midLeftVal.Bytes()...)) {
 		t.Fatal("hashes not equal")
 	}
+}
+
+func TestLimit(t *testing.T) {
+	leaves := map[string]common.Hash{
+		uid0.String():   dummyVal,
+		uidMax.String(): dummyVal,
+	}
+
+	tree := testTree(t, leaves, depth257)
+
+	proof1 := CreateProof(uidMax, depth257, tree.tree, tree.defaultNodes)
+
+	if !CheckMembership(uidMax, dummyVal.Bytes(), tree.root.Bytes(), proof1) {
+		t.Fatal("membership is not confirmed")
+	}
+
 }
