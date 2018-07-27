@@ -1,10 +1,10 @@
 package merkle
 
 import (
+	"bytes"
 	"math/big"
 	"sort"
 
-	"bytes"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
@@ -17,9 +17,9 @@ var (
 
 type Tree struct {
 	root         common.Hash
-	tree         []map[string]common.Hash
+	Tree         []map[string]common.Hash
 	depth        *big.Int
-	defaultNodes map[string]common.Hash
+	DefaultNodes map[string]common.Hash
 }
 
 func NewTree(leaves map[string]common.Hash, depth *big.Int) (*Tree, error) {
@@ -28,23 +28,27 @@ func NewTree(leaves map[string]common.Hash, depth *big.Int) (*Tree, error) {
 		depth, nil), big.NewInt(1))
 
 	if length.Cmp(capacity) == 1 {
-		return nil, errors.Errorf("tree with depth %d could not have %d"+
+		return nil, errors.Errorf("Tree with depth %d could not have %d"+
 			" leaves", depth, len(leaves))
 	}
 
 	tree := &Tree{depth: depth}
 
 	defaultNodes := createDefaultNodes(depth)
-	tree.defaultNodes = defaultNodes
+	tree.DefaultNodes = defaultNodes
 
 	if leaves != nil {
-		tree.tree = create(leaves, depth, defaultNodes)
-		tree.root = tree.tree[len(tree.tree)-1]["0"]
+		tree.Tree = create(leaves, depth, defaultNodes)
+		tree.root = tree.Tree[len(tree.Tree)-1]["0"]
 	} else {
-		tree.tree = []map[string]common.Hash{}
+		tree.Tree = []map[string]common.Hash{}
 		tree.root = defaultNodes[new(big.Int).Sub(depth, big.NewInt(1)).String()]
 	}
 	return tree, nil
+}
+
+func (tr *Tree) Root() common.Hash {
+	return tr.root
 }
 
 func create(leaves map[string]common.Hash, depth *big.Int,

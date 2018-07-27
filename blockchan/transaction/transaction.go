@@ -62,6 +62,10 @@ func (tx *Transaction) Hash() common.Hash {
 	})
 }
 
+func (tx *Transaction) UID() *big.Int {
+	return tx.data.UID
+}
+
 // SignatureValues returns signature values.
 func SignatureValues(sig []byte) (r, s, v *big.Int, err error) {
 	if len(sig) != 65 {
