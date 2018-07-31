@@ -15,6 +15,7 @@ var (
 	two = big.NewInt(2)
 )
 
+// Tree is structure to storage Merkle tree.
 type Tree struct {
 	root         common.Hash
 	Tree         []map[string]common.Hash
@@ -22,6 +23,7 @@ type Tree struct {
 	DefaultNodes map[string]common.Hash
 }
 
+// NewTree creates new Merkle tree.
 func NewTree(leaves map[string]common.Hash, depth *big.Int) (*Tree, error) {
 	length := new(big.Int).SetInt64(int64(len(leaves)))
 	capacity := new(big.Int).Sub(new(big.Int).Exp(big.NewInt(2),
@@ -47,6 +49,7 @@ func NewTree(leaves map[string]common.Hash, depth *big.Int) (*Tree, error) {
 	return tree, nil
 }
 
+// Root returns Merkle root.
 func (tr *Tree) Root() common.Hash {
 	return tr.root
 }
@@ -62,9 +65,9 @@ func create(leaves map[string]common.Hash, depth *big.Int,
 
 		keys := sortKeys(treeLevel)
 
-		for _, strUid := range keys {
-			index, _ := new(big.Int).SetString(strUid, 10)
-			value := treeLevel[strUid]
+		for _, strUID := range keys {
+			index, _ := new(big.Int).SetString(strUID, 10)
+			value := treeLevel[strUID]
 
 			if new(big.Int).Rem(index, two).Cmp(big.NewInt(0)) == 0 {
 				div := new(big.Int).Div(index, two)
