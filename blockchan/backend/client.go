@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
@@ -21,6 +22,12 @@ type Backend interface {
 	Connect() bind.ContractBackend
 	Mine(tx *types.Transaction) (*types.Receipt, error)
 	GoodTransaction(tx *types.Transaction) bool
+}
+
+// Simulator interface.
+type Simulator interface {
+	Backend
+	AdjustTime(adjustment time.Duration) error
 }
 
 type backend struct {
@@ -56,6 +63,19 @@ func (back *backend) Mine(tx *types.Transaction) (*types.Receipt, error) {
 		return bind.WaitMined(context.Background(), conn, tx)
 	}
 	return nil, errors.New("unsupported backend")
+}
+
+// AdjustTime adds a time shift to the simulated clock.
+func (back *backend) AdjustTime(adjustment time.Duration) error {
+	switch conn := back.connect.(type) {
+	case *backends.SimulatedBackend:
+		err := conn.AdjustTime(adjustment)
+		if err != nil {
+			return err
+		}
+		conn.Commit()
+	}
+	return nil
 }
 
 // GoodTransaction returns true if transaction status = 1.
