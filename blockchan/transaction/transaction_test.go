@@ -2,21 +2,39 @@ package transaction
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"math/big"
 	"testing"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
+func testKey(t *testing.T) *ecdsa.PrivateKey {
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return key
+}
+
+func testAccount(key *ecdsa.PrivateKey) *bind.TransactOpts {
+	return bind.NewKeyedTransactor(key)
+}
+
 func TestTransaction(t *testing.T) {
-	key1 := account.GenKey()
-	key2 := account.GenKey()
+	key1 := testKey(t)
+	key2 := testKey(t)
 
-	oldOwner := account.Account(key1)
-	newOwner := account.Account(key2)
+	oldOwner := testAccount(key1)
+	newOwner := testAccount(key2)
 
-	unsignedTx := NewTransaction(
-		big.NewInt(0), big.NewInt(43), big.NewInt(1), newOwner.From)
+	unsignedTx, err := NewTransaction(
+		big.NewInt(-1), big.NewInt(43), big.NewInt(1), newOwner.From)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tx, err := unsignedTx.SignTx(key1)
 	if err != nil {
@@ -38,14 +56,17 @@ func TestTransaction(t *testing.T) {
 }
 
 func TestEncodeDecodeRLP(t *testing.T) {
-	key1 := account.GenKey()
-	key2 := account.GenKey()
+	key1 := testKey(t)
+	key2 := testKey(t)
 
-	oldOwner := account.Account(key1)
-	newOwner := account.Account(key2)
+	oldOwner := testAccount(key1)
+	newOwner := testAccount(key2)
 
-	unsignedTx := NewTransaction(
+	unsignedTx, err := NewTransaction(
 		big.NewInt(0), big.NewInt(43), big.NewInt(1), newOwner.From)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tx, err := unsignedTx.SignTx(key1)
 	if err != nil {

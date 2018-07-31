@@ -6,11 +6,12 @@ import (
 	"io"
 	"math/big"
 
+	"github.com/pkg/errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/pkg/errors"
 )
 
 // Errors transaction-related errors.
@@ -33,8 +34,18 @@ type txData struct {
 
 // NewTransaction creates new unsigned transaction.
 func NewTransaction(prevBlock, uid, amount *big.Int,
-	newOwner common.Address) *Transaction {
-	// TODO: check args
+	newOwner common.Address) (*Transaction, error) {
+	if prevBlock == nil || prevBlock.Cmp(big.NewInt(-1)) < 0 {
+		return nil, errors.New("invalid number of the previous block")
+	}
+	if common.EmptyHash(newOwner.Hash()) {
+		return nil, errors.New("new owner must not be 0x0")
+	}
+
+	if uid == nil || uid.Int64() == 0 {
+		return nil, errors.New("uid must not be zero or nil")
+	}
+
 	return &Transaction{
 		data: txData{
 			PrevBlock: prevBlock,
@@ -42,7 +53,7 @@ func NewTransaction(prevBlock, uid, amount *big.Int,
 			Amount:    amount,
 			NewOwner:  newOwner,
 		},
-	}
+	}, nil
 }
 
 func rlpHash(x interface{}) (h common.Hash) {
@@ -62,6 +73,7 @@ func (tx *Transaction) Hash() common.Hash {
 	})
 }
 
+// UID returns uid from the transaction.
 func (tx *Transaction) UID() *big.Int {
 	return tx.data.UID
 }
