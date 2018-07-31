@@ -9,12 +9,15 @@ var (
 func TestDBConcurrent(t *testing.T) {
 	i := 1000000
 
+	e := make(chan error)
+
 	db := NewDB()
 	go func() {
 		for {
 			cur, err := db.Current()
 			if err != nil {
-				t.Fatal(err)
+				<-e
+				return
 			}
 			db.Get(cur + 1)
 		}
@@ -35,5 +38,11 @@ func TestDBConcurrent(t *testing.T) {
 	_, err := db.Current()
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	select {
+	case err := <-e:
+		t.Fatal(err)
+	default:
 	}
 }

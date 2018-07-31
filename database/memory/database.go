@@ -19,6 +19,15 @@ func NewDB() *DB {
 	}
 }
 
+// Close erases data from database.
+func (d *DB) Close() error {
+	d.mtx.Lock()
+	defer d.mtx.Unlock()
+
+	d.blocks = make(map[uint64][]byte)
+	return nil
+}
+
 // Set adds value to new block.
 func (d *DB) Set(val []byte) error {
 	d.mtx.Lock()
