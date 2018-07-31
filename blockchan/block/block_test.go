@@ -1,14 +1,13 @@
 package block
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 
-	"bytes"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/transaction"
 	"github.com/smartmeshfoundation/smartplasma/merkle"
@@ -20,7 +19,7 @@ const (
 )
 
 type acc struct {
-	account *bind.TransactOpts
+	account *account.PlasmaTransactOpts
 	key     *ecdsa.PrivateKey
 }
 
@@ -37,8 +36,11 @@ func testTX(t *testing.T, prevBlock *big.Int, newOwner common.Address,
 	key *ecdsa.PrivateKey) *transaction.Transaction {
 	randKey := account.GenKey()
 
-	unsignedTx := transaction.NewTransaction(
+	unsignedTx, err := transaction.NewTransaction(
 		prevBlock, randKey.X, randKey.Y, newOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tx, err := unsignedTx.SignTx(key)
 	if err != nil {
@@ -146,4 +148,20 @@ func TestBlockEncodeDecode(t *testing.T) {
 	}
 
 	validateTx(t, txs[0], root2.Bytes(), proof)
+}
+
+func TestBlockAddExistsTx(t *testing.T) {
+	txs := generateTXs(t, numberTx, testPrevBlock)
+
+	block := NewBlock()
+
+	for _, tx := range txs {
+		if err := block.AddTx(tx); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := block.AddTx(txs[0]); err == nil {
+		t.Fatal("the transaction already exists in the block")
+	}
 }

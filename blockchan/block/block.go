@@ -24,8 +24,6 @@ var (
 	depth257 = big.NewInt(DefaultDepth)
 )
 
-// TODO: check memory synchronization
-
 // Block object.
 type Block struct {
 	mtx  sync.Mutex
@@ -55,12 +53,22 @@ func (bl *Block) Hash() common.Hash {
 // AddTx adds a transaction to the block.
 func (bl *Block) AddTx(tx *transaction.Transaction) error {
 	bl.mtx.Lock()
+	defer bl.mtx.Unlock()
+
+	if _, ok := bl.txs[tx.UID().String()]; ok {
+		return errors.Errorf("transaction for uid %s already"+
+			" exist in the block", tx.UID().String())
+	}
+
 	bl.uids = append(bl.uids, tx.UID().String())
 	sort.Strings(bl.uids)
-	bl.mtx.Unlock()
-
 	bl.txs[tx.UID().String()] = tx
 	return nil
+}
+
+// NumberOfTX returns number of transactions in the block.
+func (bl *Block) NumberOfTX() int64 {
+	return int64(len(bl.txs))
 }
 
 // Build finalizes the block.
@@ -136,7 +144,26 @@ func Unmarshal(raw []byte, block *Block) error {
 			return errors.Wrap(err, "failed to decode"+
 				" transaction")
 		}
-		block.AddTx(tx)
+
+		if err := block.AddTx(tx); err != nil {
+			return errors.Wrap(err, "failed to add transaction in the block")
+		}
 	}
 	return nil
+}
+
+// CreateProof creates merkle proof for particular uid.
+func (bl *Block) CreateProof(uid *big.Int) []byte {
+	if !bl.built {
+		return nil
+	}
+	return merkle.CreateProof(uid, depth257, bl.tree.Tree,
+		bl.tree.DefaultNodes)
+}
+
+// CheckMembership checks membership.
+func CheckMembership(uid *big.Int, txHash, blockHash common.Hash,
+	proof []byte) bool {
+	return merkle.CheckMembership(uid, txHash.Bytes(),
+		blockHash.Bytes(), proof)
 }
