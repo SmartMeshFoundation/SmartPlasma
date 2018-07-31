@@ -6,17 +6,30 @@ import "./RootChain.sol";
 contract Token {
     function approve(
         address _spender,
-        uint256 _value) public returns (bool);
-    function balanceOf(address who) public view returns (uint256);
+        uint256 _value
+    ) public returns (bool);
+
+    function balanceOf(
+        address who
+    ) public view returns (uint256);
+
     function increaseApproval(
         address _spender,
-        uint _addedValue) public returns (bool);
+        uint _addedValue
+    ) public returns (bool);
+
     function totalSupply() public view returns (uint256);
-    function transfer(address to, uint256 value) public returns (bool);
+
+    function transfer(
+        address to,
+        uint256 value
+    ) public returns (bool);
+
     function transferFrom(
         address from,
         address to,
-        uint256 value) public returns (bool);
+        uint256 value
+    ) public returns (bool);
 }
 
 /**
@@ -33,7 +46,7 @@ contract Mediator is Ownable {
     }
 
     constructor() public {
-        rootChain = new RootChain();
+        rootChain = new RootChain(msg.sender);
     }
 
     function checkToken(address addr) view public returns(bool) {
@@ -57,7 +70,8 @@ contract Mediator is Ownable {
         bytes32 uid = rootChain.deposit(msg.sender, currency, amount); // deposit test2
         cash[uid] = entry({
             currency: currency,
-            amount: amount});
+            amount: amount
+        });
     }
 
     function withdraw(
@@ -75,7 +89,8 @@ contract Mediator is Ownable {
             prevTxBlkNum,
             txRaw,
             txProof,
-            txBlkNum);
+            txBlkNum
+        );
 
         entry invoice = cash[uid];
 

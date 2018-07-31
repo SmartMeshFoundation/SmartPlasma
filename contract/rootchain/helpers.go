@@ -30,7 +30,7 @@ func NewRootChainSession(account bind.TransactOpts, contact common.Address,
 func Deploy(account *bind.TransactOpts,
 	server backend.Backend) (common.Address, *RootChain, error) {
 	addr, tx, contract, err := DeployRootChain(account,
-		server.Connect())
+		server.Connect(), account.From)
 	if err != nil {
 		return common.Address{}, nil, err
 	}
