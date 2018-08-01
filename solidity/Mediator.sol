@@ -4,32 +4,17 @@ import "./libraries/openzeppelin-solidity/contracts/ownership/Ownable.sol";
 import "./RootChain.sol";
 
 contract Token {
-    function approve(
-        address _spender,
-        uint256 _value
-    ) public returns (bool);
+    function approve(address _spender, uint256 _value) public returns (bool);
 
-    function balanceOf(
-        address who
-    ) public view returns (uint256);
+    function balanceOf(address who) public view returns (uint256);
 
-    function increaseApproval(
-        address _spender,
-        uint _addedValue
-    ) public returns (bool);
+    function increaseApproval(address _spender, uint _addedValue) public returns (bool);
 
     function totalSupply() public view returns (uint256);
 
-    function transfer(
-        address to,
-        uint256 value
-    ) public returns (bool);
+    function transfer(address to, uint256 value) public returns (bool);
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 value
-    ) public returns (bool);
+    function transferFrom(address from, address to, uint256 value) public returns (bool);
 }
 
 /**
@@ -81,7 +66,9 @@ contract Mediator is Ownable {
         bytes txRaw,
         bytes txProof,
         uint txBlkNum
-    ) public {
+    )
+        public
+    {
         bytes32 uid = rootChain.finishExit(
             msg.sender,
             prevTx,
