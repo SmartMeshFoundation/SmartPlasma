@@ -13,26 +13,26 @@ contract RootChain is Ownable {
 
     event Deposit(address depositor, uint256 amount, uint256 uid);
 
-    uint public depositCount;
-    uint public blockNumber;
-    uint challengePeriod;
+    uint256 public depositCount;
+    uint256 public blockNumber;
+    uint256 challengePeriod;
 
     address operator;
 
-    mapping(uint => bytes32) public childChain;
-    mapping(uint => exit) public exits;
-    mapping(bytes32 => uint) public wallet;
+    mapping(uint256 => bytes32) public childChain;
+    mapping(uint256 => exit) public exits;
+    mapping(bytes32 => uint256) public wallet;
 
     struct exit {
         // 0 - did not request to exit,
         // 1 - in challenge proceeding,
         // 2 - in anticipation of exit,
         // 3 - the exit was made.
-        uint state;
-        uint exitTime;
-        uint exitTxBlkNum;
+        uint256 state;
+        uint256 exitTime;
+        uint256 exitTxBlkNum;
         bytes exitTx;
-        uint txBeforeExitTxBlkNum;
+        uint256 txBeforeExitTxBlkNum;
         bytes txBeforeExitTx;
     }
 
@@ -48,18 +48,14 @@ contract RootChain is Ownable {
         _;
     }
 
-    function challengeExit(
-        uint uid,
-        bytes challengeTx,
-        bytes proof,
-        uint blkNum) public {
-    }
-
     // TODO: not payable
     function deposit(
         address account,
         address currency,
-        uint amount) public onlyOwner returns (bytes32){
+        uint256 amount
+    )
+        public onlyOwner returns (bytes32)
+    {
         bytes32 uid = PlasmaLib.generateUID(
             account,
             currency,
@@ -81,11 +77,13 @@ contract RootChain is Ownable {
     function startExit(
         bytes previousTx,
         bytes previousTxProof,
-        uint previousTxBlockNum,
+        uint256 previousTxBlockNum,
         bytes lastTx,
         bytes lastTxProof,
-        uint lastTxBlockNum
-    ) public {
+        uint256 lastTxBlockNum
+    )
+        public
+    {
         Transaction.Tx memory prevDecodedTx = previousTx.createTx();
         Transaction.Tx memory decodedTx = lastTx.createTx();
 
@@ -130,32 +128,34 @@ contract RootChain is Ownable {
 
     function finishExit(
         address account,
-        bytes prevTx,
-        bytes prevTxProof,
-        uint prevTxBlkNum,
-        bytes txRaw,
-        bytes txProof,
-        uint txBlkNum
-    ) public onlyOwner returns (bytes32) {
-        Transaction.Tx memory prevTxObj = prevTx.createTx();
-        Transaction.Tx memory txObj = txRaw.createTx();
+        bytes previousTx,
+        bytes previousTxProof,
+        uint256 previousTxBlockNum,
+        bytes lastTx,
+        bytes lastTxProof,
+        uint256 lastTxBlockNum
+    )
+        public onlyOwner returns (bytes32)
+    {
+        Transaction.Tx memory prevTxObj = previousTx.createTx();
+        Transaction.Tx memory txObj = lastTx.createTx();
 
-        require(prevTxBlkNum == txObj.prevBlock);
+        require(previousTxBlockNum == txObj.prevBlock);
         require(prevTxObj.uid == txObj.uid);
         require(prevTxObj.amount == txObj.amount);
         require(prevTxObj.newOwner == txObj.signer);
         require(account == txObj.newOwner);
 
         bytes32 prevMerkleHash = prevTxObj.hash;
-        bytes32 prevRoot = childChain[prevTxBlkNum];
+        bytes32 prevRoot = childChain[previousTxBlockNum];
         bytes32 merkleHash = txObj.hash;
-        bytes32 root = childChain[txBlkNum];
+        bytes32 root = childChain[lastTxBlockNum];
 
         require(
             prevMerkleHash.checkMembership(
                 prevTxObj.uid,
                 prevRoot,
-                prevTxProof
+                previousTxProof
             )
         );
 
@@ -163,7 +163,7 @@ contract RootChain is Ownable {
             merkleHash.checkMembership(
                 txObj.uid,
                 root,
-                txProof
+                lastTxProof
             )
         );
 

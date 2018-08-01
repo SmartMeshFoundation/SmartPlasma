@@ -17,7 +17,6 @@ library RLP {
     uint constant DATA_LONG_OFFSET = 0xB7;
     uint constant LIST_LONG_OFFSET = 0xF7;
 
-
     struct RLPItem {
         uint _unsafe_memPtr;    // Pointer to the RLP-encoded bytes.
         uint _unsafe_length;    // Number of bytes. This is the full length of the string.
