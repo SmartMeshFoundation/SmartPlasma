@@ -25,9 +25,9 @@ contract RootChain is Ownable {
 
     struct exit {
         // 0 - did not request to exit,
-        // 1 - in challenge proceeding,
+        // 1 - in challenge proceeding, it blocks a exit, TODO: remove it
         // 2 - in anticipation of exit,
-        // 3 - the exit was made.
+        // 3 - a exit was made.
         uint256 state;
         uint256 exitTime;
         uint256 exitTxBlkNum;
@@ -192,12 +192,75 @@ contract RootChain is Ownable {
         return bytes32(decodedTx.uid);
     }
 
-    function startDispute() public {
+    function challengeExit(
+        uint256 uid,
+        bytes challengeTx,
+        bytes proof,
+        uint challengeBlockNum
+    )
+        public
+    {
+        require(exits[uid].state == 2);
 
+        Transaction.Tx memory exitDecodedTx = (exits[uid].exitTx).createTx();
+        Transaction.Tx memory beforeExitDecodedTx = (exits[uid].txBeforeExitTx).createTx();
+        Transaction.Tx memory challengeDecodedTx = challengeTx.createTx();
+
+        require(exitDecodedTx.uid == challengeDecodedTx.uid);
+        require(exitDecodedTx.amount == challengeDecodedTx.amount);
+
+        bytes32 txHash = challengeDecodedTx.hash;
+        bytes32 blockRoot = childChain[challengeBlockNum];
+
+        require(txHash.checkMembership(uid, blockRoot, proof));
+
+        if (exitDecodedTx.newOwner == challengeDecodedTx.signer) {
+            delete exits[uid];
+            return;
+        }
+
+        if (challengeBlockNum < exits[uid].exitTxBlkNum  &&
+        beforeExitDecodedTx.newOwner == challengeDecodedTx.signer) {
+            delete exits[uid];
+            return;
+        }
+
+        if (challengeBlockNum < exits[uid].txBeforeExitTxBlkNum) {
+            exits[uid].state = 1;
+            addChallenge(uid, challengeTx, challengeBlockNum);
+        }
     }
 
-    function respondToDispute() public {
+    function respondChallengeExit(
+        uint256 uid,
+        bytes challengeTx,
+        bytes respondTx,
+        bytes proof,
+        uint challengeBlockNum
+    )
+        public
+    {
+        require(challengeExists(uid, challengeTx));
+        require(exits[uid].state == 1);
 
+        Transaction.Tx memory challengeDecodedTx = challengeTx.createTx();
+        Transaction.Tx memory respondDecodedTx = respondTx.createTx();
+
+        require(challengeDecodedTx.uid == respondDecodedTx.uid);
+        require(challengeDecodedTx.amount == respondDecodedTx.amount);
+        require(challengeDecodedTx.newOwner == respondDecodedTx.signer);
+        require(challengeBlockNum < exits[uid].txBeforeExitTxBlkNum);
+
+        bytes32 txHash = respondDecodedTx.hash;
+        bytes32 blockRoot = childChain[challengeBlockNum];
+
+        require(txHash.checkMembership(uid, blockRoot, proof));
+
+        removeChallenge(uid, challengeTx);
+
+        if (challengesLength(uid) == 0) {
+            exits[uid].state = 2;
+        }
     }
 
     function challengeExists(
@@ -236,7 +299,7 @@ contract RootChain is Ownable {
     )
         public
         view
-        returns(bytes challengeTx, uint256 blockNumber)
+        returns(bytes challengeTx, uint256 challengeBlock)
     {
         challenge storage che = disputes[uid].challenges[index.add(uint256(1))];
 
@@ -246,7 +309,7 @@ contract RootChain is Ownable {
     function addChallenge(
         uint256 uid,
         bytes challengeTx,
-        uint blockNumber
+        uint challengeBlockNumber
     )
         public
     {
@@ -257,7 +320,7 @@ contract RootChain is Ownable {
         challenge memory cha = challenge({
             exists: true,
             challengeTx: challengeTx,
-            blockNumber: blockNumber
+            blockNumber: challengeBlockNumber
         });
 
         // index 1 is magic number
