@@ -38,7 +38,7 @@ func NewTransaction(prevBlock, uid, amount *big.Int,
 	if prevBlock == nil || prevBlock.Cmp(big.NewInt(-1)) < 0 {
 		return nil, errors.New("invalid number of the previous block")
 	}
-	if common.EmptyHash(newOwner.Hash()) {
+	if emptyHash(newOwner.Hash()) {
 		return nil, errors.New("new owner must not be 0x0")
 	}
 
@@ -151,4 +151,8 @@ func recoverPlain(sighash common.Hash, R, S,
 	var addr common.Address
 	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
 	return addr, nil
+}
+
+func emptyHash(h common.Hash) bool {
+	return h == common.Hash{}
 }
