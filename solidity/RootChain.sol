@@ -214,10 +214,11 @@ contract RootChain is Ownable {
 
         require(txHash.checkMembership(uid, blockRoot, proof));
 
-        if (exitDecodedTx.newOwner == challengeDecodedTx.signer) {
-            delete exits[uid];
-            return;
-        }
+        // TODO: not effective
+//        if (exitDecodedTx.newOwner == challengeDecodedTx.signer) {
+//            delete exits[uid];
+//            return;
+//        }
 
         if (challengeBlockNum < exits[uid].exitTxBlkNum  &&
         beforeExitDecodedTx.newOwner == challengeDecodedTx.signer) {

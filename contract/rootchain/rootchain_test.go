@@ -142,7 +142,7 @@ func TestAddChallenge(t *testing.T) {
 		}
 
 		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.BlockNumber.Bytes(),
+			!bytes.Equal(str.ChallengeBlock.Bytes(),
 				data.blockNumber.Bytes()) {
 			t.Fatal("challenge is wrong")
 		}
@@ -189,7 +189,7 @@ func TestRemoveChallengeFromMiddle(t *testing.T) {
 		}
 
 		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.BlockNumber.Bytes(),
+			!bytes.Equal(str.ChallengeBlock.Bytes(),
 				data.blockNumber.Bytes()) {
 			t.Fatal("challenge is wrong")
 		}
@@ -246,7 +246,7 @@ func TestRemoveChallengeFromStart(t *testing.T) {
 		}
 
 		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.BlockNumber.Bytes(),
+			!bytes.Equal(str.ChallengeBlock.Bytes(),
 				data.blockNumber.Bytes()) {
 			t.Fatal("challenge is wrong")
 		}
@@ -303,7 +303,7 @@ func TestRemoveChallengeFromFinish(t *testing.T) {
 		}
 
 		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.BlockNumber.Bytes(),
+			!bytes.Equal(str.ChallengeBlock.Bytes(),
 				data.blockNumber.Bytes()) {
 			t.Fatal("challenge is wrong")
 		}
@@ -357,7 +357,7 @@ func TestRemoveAllChallenge(t *testing.T) {
 		}
 
 		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.BlockNumber.Bytes(),
+			!bytes.Equal(str.ChallengeBlock.Bytes(),
 				data.blockNumber.Bytes()) {
 			t.Fatal("challenge is wrong")
 		}
