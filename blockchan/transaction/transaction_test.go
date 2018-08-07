@@ -31,7 +31,8 @@ func TestTransaction(t *testing.T) {
 	newOwner := testAccount(key2)
 
 	unsignedTx, err := NewTransaction(
-		big.NewInt(-1), big.NewInt(43), big.NewInt(1), newOwner.From)
+		big.NewInt(-1), big.NewInt(43), big.NewInt(1),
+		big.NewInt(0), newOwner.From)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +64,8 @@ func TestEncodeDecodeRLP(t *testing.T) {
 	newOwner := testAccount(key2)
 
 	unsignedTx, err := NewTransaction(
-		big.NewInt(0), big.NewInt(43), big.NewInt(1), newOwner.From)
+		big.NewInt(0), big.NewInt(43), big.NewInt(1),
+		big.NewInt(0), newOwner.From)
 	if err != nil {
 		t.Fatal(err)
 	}

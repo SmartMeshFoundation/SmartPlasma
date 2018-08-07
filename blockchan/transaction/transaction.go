@@ -29,11 +29,12 @@ type txData struct {
 	UID       *big.Int       `json:"uid"`
 	Amount    *big.Int       `json:"amount"`
 	NewOwner  common.Address `json:"newOwner"`
+	Nonce     *big.Int       `json:"nonce"`
 	Sig       []byte         `json:"sig"`
 }
 
 // NewTransaction creates new unsigned transaction.
-func NewTransaction(prevBlock, uid, amount *big.Int,
+func NewTransaction(prevBlock, uid, amount, nonce *big.Int,
 	newOwner common.Address) (*Transaction, error) {
 	if prevBlock == nil || prevBlock.Cmp(big.NewInt(-1)) < 0 {
 		return nil, errors.New("invalid number of the previous block")
@@ -52,6 +53,7 @@ func NewTransaction(prevBlock, uid, amount *big.Int,
 			UID:       uid,
 			Amount:    amount,
 			NewOwner:  newOwner,
+			Nonce:     nonce,
 		},
 	}, nil
 }
@@ -70,6 +72,7 @@ func (tx *Transaction) Hash() common.Hash {
 		tx.data.UID,
 		tx.data.Amount,
 		tx.data.NewOwner,
+		tx.data.Nonce,
 	})
 }
 

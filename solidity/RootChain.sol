@@ -104,6 +104,7 @@ contract RootChain is Ownable {
         require(prevDecodedTx.uid == decodedTx.uid);
         require(prevDecodedTx.amount == decodedTx.amount);
         require(prevDecodedTx.newOwner == decodedTx.signer);
+        require(decodedTx.nonce == prevDecodedTx.nonce.add(uint256(1)));
         require(msg.sender == decodedTx.newOwner);
 
         bytes32 prevTxHash = prevDecodedTx.hash;
@@ -214,11 +215,11 @@ contract RootChain is Ownable {
 
         require(txHash.checkMembership(uid, blockRoot, proof));
 
-        // TODO: not effective
-//        if (exitDecodedTx.newOwner == challengeDecodedTx.signer) {
-//            delete exits[uid];
-//            return;
-//        }
+        if (exitDecodedTx.newOwner == challengeDecodedTx.signer &&
+        exitDecodedTx.nonce < challengeDecodedTx.nonce) {
+            delete exits[uid];
+            return;
+        }
 
         if (challengeBlockNum < exits[uid].exitTxBlkNum  &&
         beforeExitDecodedTx.newOwner == challengeDecodedTx.signer) {
@@ -226,10 +227,12 @@ contract RootChain is Ownable {
             return;
         }
 
-        if (challengeBlockNum < exits[uid].txBeforeExitTxBlkNum) {
+        if (challengeBlockNum < exits[uid].txBeforeExitTxBlkNum ) {
             exits[uid].state = 1;
             addChallenge(uid, challengeTx, challengeBlockNum);
         }
+
+        require(exits[uid].state == 1);
     }
 
     function respondChallengeExit(
