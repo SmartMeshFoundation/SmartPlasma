@@ -33,11 +33,11 @@ func testAcc() *acc {
 }
 
 func testTX(t *testing.T, prevBlock *big.Int, newOwner common.Address,
-	key *ecdsa.PrivateKey) *transaction.Transaction {
+	key *ecdsa.PrivateKey, nonce *big.Int) *transaction.Transaction {
 	randKey := account.GenKey()
 
 	unsignedTx, err := transaction.NewTransaction(
-		prevBlock, randKey.X, randKey.Y, newOwner)
+		prevBlock, randKey.X, randKey.Y, nonce, newOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func generateTXs(t *testing.T, number int,
 		newOwner := testAcc()
 
 		tx := testTX(t, big.NewInt(int64(prevBlock)),
-			newOwner.account.From, owner.key)
+			newOwner.account.From, owner.key, big.NewInt(0))
 
 		txs = append(txs, tx)
 	}

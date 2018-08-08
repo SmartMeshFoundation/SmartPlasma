@@ -251,10 +251,10 @@ func testDeposit(t *testing.T, i *instance) (uid *big.Int) {
 }
 
 func testTx(t *testing.T, prevBlock, uid,
-	amount *big.Int, newOwner common.Address,
+	amount *big.Int, nonce *big.Int, newOwner common.Address,
 	signer *account.PlasmaTransactOpts) *transaction.Transaction {
 	unsignedTx, err := transaction.NewTransaction(
-		prevBlock, uid, amount, newOwner)
+		prevBlock, uid, amount, nonce, newOwner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -304,7 +304,7 @@ func TestMediatorNormalFlow(t *testing.T) {
 
 	uid := testDeposit(t, i)
 
-	tx := testTx(t, zero, uid, one, user1.From, user1)
+	tx := testTx(t, zero, uid, one, zero, user1.From, user1)
 
 	plasmaBlock1 := testBlock(t, tx)
 
@@ -327,7 +327,7 @@ func TestMediatorNormalFlow(t *testing.T) {
 		t.Fatal("tx1 invalid")
 	}
 
-	tx2 := testTx(t, one, uid, one, user2.From, user1)
+	tx2 := testTx(t, one, uid, one, one, user2.From, user1)
 
 	plasmaBlock2 := testBlock(t, tx2)
 

@@ -104,6 +104,7 @@ contract RootChain is Ownable {
         require(prevDecodedTx.uid == decodedTx.uid);
         require(prevDecodedTx.amount == decodedTx.amount);
         require(prevDecodedTx.newOwner == decodedTx.signer);
+        require(decodedTx.nonce == prevDecodedTx.nonce.add(uint256(1)));
         require(msg.sender == decodedTx.newOwner);
 
         bytes32 prevTxHash = prevDecodedTx.hash;
@@ -214,30 +215,37 @@ contract RootChain is Ownable {
 
         require(txHash.checkMembership(uid, blockRoot, proof));
 
-        // TODO: not effective
-//        if (exitDecodedTx.newOwner == challengeDecodedTx.signer) {
-//            delete exits[uid];
-//            return;
-//        }
-
-        if (challengeBlockNum < exits[uid].exitTxBlkNum  &&
-        beforeExitDecodedTx.newOwner == challengeDecodedTx.signer) {
+        // test challenge #1 & test challenge #2
+        if (exitDecodedTx.newOwner == challengeDecodedTx.signer &&
+        exitDecodedTx.nonce < challengeDecodedTx.nonce) {
             delete exits[uid];
             return;
         }
 
-        if (challengeBlockNum < exits[uid].txBeforeExitTxBlkNum) {
+        // test challenge #3
+        if (challengeBlockNum < exits[uid].exitTxBlkNum  &&
+        beforeExitDecodedTx.newOwner == challengeDecodedTx.signer &&
+        challengeDecodedTx.nonce > beforeExitDecodedTx.nonce) {
+            delete exits[uid];
+            return;
+        }
+
+        // test challenge #4
+        if (challengeBlockNum < exits[uid].txBeforeExitTxBlkNum ) {
             exits[uid].state = 1;
             addChallenge(uid, challengeTx, challengeBlockNum);
         }
+
+        require(exits[uid].state == 1);
     }
 
+    // test respond to a challenge #1
     function respondChallengeExit(
         uint256 uid,
         bytes challengeTx,
         bytes respondTx,
         bytes proof,
-        uint challengeBlockNum
+        uint blockNum
     )
         public
     {
@@ -250,10 +258,11 @@ contract RootChain is Ownable {
         require(challengeDecodedTx.uid == respondDecodedTx.uid);
         require(challengeDecodedTx.amount == respondDecodedTx.amount);
         require(challengeDecodedTx.newOwner == respondDecodedTx.signer);
-        require(challengeBlockNum < exits[uid].txBeforeExitTxBlkNum);
+        require(challengeDecodedTx.nonce.add(uint256(1)) == respondDecodedTx.nonce);
+        require(blockNum < exits[uid].txBeforeExitTxBlkNum);
 
         bytes32 txHash = respondDecodedTx.hash;
-        bytes32 blockRoot = childChain[challengeBlockNum];
+        bytes32 blockRoot = childChain[blockNum];
 
         require(txHash.checkMembership(uid, blockRoot, proof));
 
@@ -312,7 +321,7 @@ contract RootChain is Ownable {
         bytes challengeTx,
         uint challengeBlockNumber
     )
-        public
+        private
     {
         uint256 indexTx = disputes[uid].indexes[challengeTx];
 
@@ -338,7 +347,7 @@ contract RootChain is Ownable {
         uint256 uid,
         bytes challengeTx
     )
-        public
+        private
     {
         uint256 indexTx = disputes[uid].indexes[challengeTx];
 
