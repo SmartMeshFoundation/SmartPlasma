@@ -393,6 +393,15 @@ func TestMediatorNormalFlow(t *testing.T) {
 		t.Fatal("invalid withdraw")
 	}
 
+	amount, err := i.rootUser1Session.Wallet(common.BigToHash(uid))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if amount.Int64() != 0 {
+		t.Fatal("the coin is not spent")
+	}
+
 	exits2, err := i.rootUser2Session.Exits(uid)
 	if err != nil {
 		t.Fatal(err)

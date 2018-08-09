@@ -132,10 +132,10 @@ func TestCreateProof(t *testing.T) {
 	midLeftVal := crypto.Keccak256Hash(dummyVal.Bytes(), emptyVal.Bytes())
 	midRightVal := crypto.Keccak256Hash(dummyVal.Bytes(), dummyVal.Bytes())
 
-	proof1 := CreateProof(uid0, depth3, tree.Tree, tree.DefaultNodes)
-	proof2 := CreateProof(uid1, depth3, tree.Tree, tree.DefaultNodes)
-	proof3 := CreateProof(uid2, depth3, tree.Tree, tree.DefaultNodes)
-	proof4 := CreateProof(uid3, depth3, tree.Tree, tree.DefaultNodes)
+	proof1 := CreateProof(uid0, depth3, tree.GetStructure(), tree.DefaultNodes)
+	proof2 := CreateProof(uid1, depth3, tree.GetStructure(), tree.DefaultNodes)
+	proof3 := CreateProof(uid2, depth3, tree.GetStructure(), tree.DefaultNodes)
+	proof4 := CreateProof(uid3, depth3, tree.GetStructure(), tree.DefaultNodes)
 
 	if !bytes.Equal(proof1, append(emptyVal.Bytes(), midRightVal.Bytes()...)) {
 		t.Fatal("hashes not equal")
@@ -161,7 +161,7 @@ func TestLimit(t *testing.T) {
 
 	tree := testTree(t, leaves, depth257)
 
-	proof1 := CreateProof(uidMax, depth257, tree.Tree, tree.DefaultNodes)
+	proof1 := CreateProof(uidMax, depth257, tree.GetStructure(), tree.DefaultNodes)
 
 	if !CheckMembership(uidMax, dummyVal.Bytes(), tree.root.Bytes(), proof1) {
 		t.Fatal("membership is not confirmed")

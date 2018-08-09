@@ -103,8 +103,8 @@ func TestBlockBuild(t *testing.T) {
 	}
 
 	for _, tx := range txs {
-		proof := merkle.CreateProof(tx.UID(), depth257, block.tree.Tree,
-			block.tree.DefaultNodes)
+		proof := merkle.CreateProof(tx.UID(), depth257,
+			block.tree.GetStructure(), block.tree.DefaultNodes)
 		validateTx(t, tx, root.Bytes(), proof)
 	}
 }
@@ -124,8 +124,8 @@ func TestBlockEncodeDecode(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	proof := merkle.CreateProof(txs[0].UID(), depth257, block.tree.Tree,
-		block.tree.DefaultNodes)
+	proof := merkle.CreateProof(txs[0].UID(), depth257,
+		block.tree.GetStructure(), block.tree.DefaultNodes)
 
 	raw, err := block.Marshal()
 	if err != nil {

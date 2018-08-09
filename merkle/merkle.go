@@ -18,7 +18,7 @@ var (
 // Tree is structure to storage Merkle tree.
 type Tree struct {
 	root         common.Hash
-	Tree         []map[string]common.Hash
+	tree         []map[string]common.Hash
 	depth        *big.Int
 	DefaultNodes map[string]common.Hash
 }
@@ -40,10 +40,10 @@ func NewTree(leaves map[string]common.Hash, depth *big.Int) (*Tree, error) {
 	tree.DefaultNodes = defaultNodes
 
 	if leaves != nil {
-		tree.Tree = create(leaves, depth, defaultNodes)
-		tree.root = tree.Tree[len(tree.Tree)-1]["0"]
+		tree.tree = create(leaves, depth, defaultNodes)
+		tree.root = tree.tree[len(tree.tree)-1]["0"]
 	} else {
-		tree.Tree = []map[string]common.Hash{}
+		tree.tree = []map[string]common.Hash{}
 		tree.root = defaultNodes[new(big.Int).Sub(depth, big.NewInt(1)).String()]
 	}
 	return tree, nil
@@ -52,6 +52,10 @@ func NewTree(leaves map[string]common.Hash, depth *big.Int) (*Tree, error) {
 // Root returns Merkle root.
 func (tr *Tree) Root() common.Hash {
 	return tr.root
+}
+
+func (tr *Tree) GetStructure() []map[string]common.Hash {
+	return tr.tree
 }
 
 func create(leaves map[string]common.Hash, depth *big.Int,

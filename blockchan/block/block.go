@@ -157,7 +157,7 @@ func (bl *Block) CreateProof(uid *big.Int) []byte {
 	if !bl.built {
 		return nil
 	}
-	return merkle.CreateProof(uid, depth257, bl.tree.Tree,
+	return merkle.CreateProof(uid, depth257, bl.tree.GetStructure(),
 		bl.tree.DefaultNodes)
 }
 
