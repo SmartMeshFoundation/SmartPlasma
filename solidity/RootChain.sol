@@ -265,12 +265,10 @@ contract RootChain is Ownable {
         public
     {
         require(checkpoints[checkpointRoot] != 0 &&
-        checkpoints[checkpointRoot].add(challengePeriod) < now); // TODO: more strong time check
+        checkpoints[checkpointRoot].add(challengePeriod) > now); // TODO: more strong time check
         require(!checkpointIsChallenge(uid, checkpointRoot, lastTx));
 
         Transaction.Tx memory lastTxDecoded = lastTx.createTx();
-
-        require(msg.sender == lastTxDecoded.newOwner);
 
         bytes32 txHash = lastTxDecoded.hash;
         bytes32 blockRoot = childChain[lastTxBlockNum];
@@ -336,7 +334,7 @@ contract RootChain is Ownable {
         }
     }
 
-    function respondCheckpointChallengeExit(
+    function respondCheckpointChallenge(
         uint256 uid,
         bytes32 checkpointRoot,
         bytes challengeTx,
@@ -360,6 +358,45 @@ contract RootChain is Ownable {
         bytes32 blockRoot = childChain[blockNum];
 
         require(txHash.checkMembership(uid, blockRoot, proof));
+
+        removeCheckpointChallenge(uid, checkpointRoot, challengeTx);
+    }
+
+    function respondWithHistoricalCheckpoint(
+        uint256 uid,
+        bytes32 checkpointRoot,
+        bytes checkpointProof,
+        bytes32 historicalCheckpointRoot,
+        bytes historicalCheckpointProof,
+        bytes challengeTx,
+        uint256 moreNonce
+    )
+        public
+    {
+        require(checkpointIsChallenge(uid, checkpointRoot, challengeTx));
+
+        Transaction.Tx memory challengeDecodedTx = challengeTx.createTx();
+
+        bytes32 lastNonceCandidate = bytes32(challengeDecodedTx.nonce);
+        bytes32 moreNonceBytes = bytes32(moreNonce);
+
+        require(moreNonce > challengeDecodedTx.nonce);
+        require(
+            lastNonceCandidate.checkMembership(
+                uid,
+                checkpointRoot,
+                checkpointProof
+            )
+        );
+        require(
+            moreNonceBytes.checkMembership(
+                uid,
+                historicalCheckpointRoot,
+                historicalCheckpointProof
+            )
+        );
+        require(checkpoints[historicalCheckpointRoot].add(challengePeriod) < now);
+        require(checkpoints[historicalCheckpointRoot] < checkpoints[checkpointRoot]);
 
         removeCheckpointChallenge(uid, checkpointRoot, challengeTx);
     }

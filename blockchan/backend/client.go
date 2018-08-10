@@ -84,6 +84,9 @@ func (back *backend) GoodTransaction(tx *types.Transaction) bool {
 	if err != nil {
 		return false
 	}
+
+	//fmt.Printf("gas: %d\n", tr.GasUsed)
+
 	if tr.Status != 1 {
 		return false
 	}

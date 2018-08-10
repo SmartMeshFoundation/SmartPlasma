@@ -35,11 +35,6 @@ func Deploy(account *bind.TransactOpts,
 		return common.Address{}, nil, err
 	}
 
-	_, err = server.Mine(tx)
-	if err != nil {
-		return common.Address{}, nil, err
-	}
-
 	if !server.GoodTransaction(tx) {
 		return common.Address{}, nil,
 			errors.New("failed to deploy RootChain contract")
