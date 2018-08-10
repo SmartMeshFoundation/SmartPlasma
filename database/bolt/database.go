@@ -10,21 +10,22 @@ import (
 
 const (
 	fileMode = 0600
-	blocks   = "blocks"
 )
 
 var (
-	blocksBucket = []byte(blocks)
+	BlocksBucket = "blocks"
 )
 
 // DB object for storage data to filesystem.
 type DB struct {
+	bucket []byte
+
 	mtx      sync.Mutex
 	database *bolt.DB
 }
 
 // NewDB creates new database.
-func NewDB(file string, options *bolt.Options) (*DB, error) {
+func NewDB(file string, bucket string, options *bolt.Options) (*DB, error) {
 	var opt *bolt.Options
 
 	if options == nil {
@@ -39,7 +40,7 @@ func NewDB(file string, options *bolt.Options) (*DB, error) {
 	}
 
 	if err := dBase.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(blocksBucket)
+		_, err := tx.CreateBucketIfNotExists([]byte(bucket))
 		return err
 	}); err != nil {
 		return nil, err
@@ -47,6 +48,7 @@ func NewDB(file string, options *bolt.Options) (*DB, error) {
 
 	return &DB{
 		database: dBase,
+		bucket:   []byte(bucket),
 	}, nil
 }
 
@@ -64,7 +66,7 @@ func (d *DB) Set(val []byte) error {
 	defer d.mtx.Unlock()
 
 	return d.database.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(blocksBucket)
+		bucket := tx.Bucket(d.bucket)
 		if bucket == nil {
 			return bolt.ErrBucketNotFound
 		}
@@ -84,7 +86,7 @@ func (d *DB) Get(key uint64) ([]byte, error) {
 	var val []byte
 
 	err := d.database.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(blocksBucket)
+		bucket := tx.Bucket(d.bucket)
 		if bucket == nil {
 			return bolt.ErrBucketNotFound
 		}
@@ -102,7 +104,7 @@ func (d *DB) Current() (uint64, error) {
 	var sequence uint64
 
 	err := d.database.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(blocksBucket)
+		bucket := tx.Bucket(d.bucket)
 		if bucket == nil {
 			return bolt.ErrBucketNotFound
 		}

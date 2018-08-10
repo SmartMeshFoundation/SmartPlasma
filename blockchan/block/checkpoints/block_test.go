@@ -1,24 +1,19 @@
-package chblock
+package checkpoints
 
 import (
-	"crypto/ecdsa"
+	"bytes"
 	"math/big"
 	"testing"
 
-	"bytes"
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
 	"github.com/smartmeshfoundation/smartplasma/merkle"
 )
 
 const (
 	numberCheckpoints = 4
-	testPrevBlock     = 0
 )
-
-type acc struct {
-	account *account.PlasmaTransactOpts
-	key     *ecdsa.PrivateKey
-}
 
 type checkpoint struct {
 	uid   *big.Int
@@ -43,76 +38,77 @@ func generateCheckpoints(number int) (result []*checkpoint) {
 
 func validateCheckpoint(t *testing.T, uid, number *big.Int,
 	root, proof []byte) {
-	if !merkle.CheckMembership(uid, number.Bytes(), root, proof) {
+	if !merkle.CheckMembership(uid, common.BigToHash(number),
+		common.BytesToHash(root), proof) {
 		t.Fatal("the checkpoint was incorrectly" +
 			" included in the block")
 	}
 }
 
 func TestAddCheckpoint(t *testing.T) {
-	number := 4
-	chs := generateCheckpoints(number)
-	block := NewBlock()
+	chs := generateCheckpoints(numberCheckpoints)
+	bl := NewBlock()
 
 	for _, ch := range chs {
-		if err := block.AddCheckpoint(ch.uid, ch.nonce); err != nil {
+		if err := bl.AddCheckpoint(ch.uid, ch.nonce); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if len(block.numbers) != number {
-		t.Fatalf("tx number must be %d, got %d", number, len(block.numbers))
+	if len(bl.numbers) != numberCheckpoints {
+		t.Fatalf("tx number must be %d, got %d",
+			numberCheckpoints, len(bl.numbers))
 	}
 }
 
 func TestBlockBuild(t *testing.T) {
 	chs := generateCheckpoints(numberCheckpoints)
-	block := NewBlock()
+	bl := NewBlock()
 
 	for _, ch := range chs {
-		if err := block.AddCheckpoint(ch.uid, ch.nonce); err != nil {
+		if err := bl.AddCheckpoint(ch.uid, ch.nonce); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	root, err := block.Build()
+	root, err := bl.Build()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, ch := range chs {
-		proof := merkle.CreateProof(ch.uid, depth257,
-			block.tree.GetStructure(), block.tree.DefaultNodes)
+		proof := merkle.CreateProof(ch.uid, merkle.Depth257,
+			bl.tree.GetStructure(), bl.tree.DefaultNodes)
 		validateCheckpoint(t, ch.uid, ch.nonce, root.Bytes(), proof)
 	}
 }
 
 func TestBlockEncodeDecode(t *testing.T) {
 	chs := generateCheckpoints(numberCheckpoints)
-	block := NewBlock()
+	bl := NewBlock()
 
 	for _, ch := range chs {
-		if err := block.AddCheckpoint(ch.uid, ch.nonce); err != nil {
+		if err := bl.AddCheckpoint(ch.uid, ch.nonce); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	root1, err := block.Build()
+	root1, err := bl.Build()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	proof := merkle.CreateProof(chs[0].uid, depth257,
-		block.tree.GetStructure(), block.tree.DefaultNodes)
+	proof := merkle.CreateProof(chs[0].uid, merkle.Depth257,
+		bl.tree.GetStructure(), bl.tree.DefaultNodes)
 
-	raw, err := block.Marshal()
+	raw, err := bl.Marshal()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	reconstructed := NewBlock()
 
-	if err := Unmarshal(raw, reconstructed); err != nil {
+	if err := reconstructed.Unmarshal(raw); err != nil {
 		t.Fatal(err)
 	}
 
@@ -129,15 +125,15 @@ func TestBlockEncodeDecode(t *testing.T) {
 
 func TestBlockAddExistsTx(t *testing.T) {
 	chs := generateCheckpoints(numberCheckpoints)
-	block := NewBlock()
+	bl := NewBlock()
 
 	for _, ch := range chs {
-		if err := block.AddCheckpoint(ch.uid, ch.nonce); err != nil {
+		if err := bl.AddCheckpoint(ch.uid, ch.nonce); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if err := block.AddCheckpoint(chs[0].uid, chs[0].nonce); err == nil {
+	if err := bl.AddCheckpoint(chs[0].uid, chs[0].nonce); err == nil {
 		t.Fatal("the transaction already exists in the block")
 	}
 }

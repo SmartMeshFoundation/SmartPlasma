@@ -1,4 +1,4 @@
-package chblock
+package checkpoints
 
 import (
 	"encoding/json"
@@ -12,43 +12,31 @@ import (
 	"github.com/smartmeshfoundation/smartplasma/merkle"
 )
 
-// TODO: union with tx block, create interface - block
-// TODO: need refactor
-
-// Default value to depth.
-const (
-	DefaultDepth = 257
-)
-
-var (
-	depth257 = big.NewInt(DefaultDepth)
-)
-
-// Block object.
-type Block struct {
+// checkpointBlock object.
+type checkpointBlock struct {
 	mtx     sync.Mutex
-	uids    []string
+	uIDs    []string
 	numbers map[string]common.Hash
 	tree    *merkle.Tree
 
 	built bool
 }
 
-func NewBlock() *Block {
-	return &Block{
+func NewBlock() *checkpointBlock {
+	return &checkpointBlock{
 		mtx:     sync.Mutex{},
 		numbers: make(map[string]common.Hash),
 	}
 }
 
-func (bl *Block) Hash() common.Hash {
+func (bl *checkpointBlock) Hash() common.Hash {
 	if !bl.built {
 		return common.Hash{}
 	}
 	return bl.tree.Root()
 }
 
-func (bl *Block) AddCheckpoint(uid, number *big.Int) error {
+func (bl *checkpointBlock) AddCheckpoint(uid, number *big.Int) error {
 	bl.mtx.Lock()
 	defer bl.mtx.Unlock()
 
@@ -57,17 +45,17 @@ func (bl *Block) AddCheckpoint(uid, number *big.Int) error {
 			" exist in the block", uid.String())
 	}
 
-	bl.uids = append(bl.uids, uid.String())
-	sort.Strings(bl.uids)
+	bl.uIDs = append(bl.uIDs, uid.String())
+	sort.Strings(bl.uIDs)
 	bl.numbers[uid.String()] = common.BigToHash(number)
 	return nil
 }
 
-func (bl *Block) NumberOfCheckpoints() int64 {
+func (bl *checkpointBlock) NumberOfCheckpoints() int64 {
 	return int64(len(bl.numbers))
 }
 
-func (bl *Block) Build() (common.Hash, error) {
+func (bl *checkpointBlock) Build() (common.Hash, error) {
 	if bl.built {
 		return common.Hash{}, errors.New("block is already built")
 	}
@@ -75,13 +63,13 @@ func (bl *Block) Build() (common.Hash, error) {
 	bl.mtx.Lock()
 	defer bl.mtx.Unlock()
 
-	if !sort.StringsAreSorted(bl.uids) {
+	if !sort.StringsAreSorted(bl.uIDs) {
 		bl.mtx.Lock()
-		sort.Strings(bl.uids)
+		sort.Strings(bl.uIDs)
 		bl.mtx.Unlock()
 	}
 
-	tree, err := merkle.NewTree(bl.numbers, depth257)
+	tree, err := merkle.NewTree(bl.numbers, merkle.Depth257)
 	if err != nil {
 		return common.Hash{}, errors.Wrap(err, "failed to build block")
 	}
@@ -91,7 +79,7 @@ func (bl *Block) Build() (common.Hash, error) {
 	return bl.tree.Root(), nil
 }
 
-func (bl *Block) Marshal() ([]byte, error) {
+func (bl *checkpointBlock) Marshal() ([]byte, error) {
 	raw, err := json.Marshal(bl.numbers)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to encode"+
@@ -101,7 +89,7 @@ func (bl *Block) Marshal() ([]byte, error) {
 	return raw, nil
 }
 
-func Unmarshal(raw []byte, block *Block) error {
+func (bl *checkpointBlock) Unmarshal(raw []byte) error {
 	var checkpoints map[string]common.Hash
 
 	if err := json.Unmarshal(raw, &checkpoints); err != nil {
@@ -115,24 +103,17 @@ func Unmarshal(raw []byte, block *Block) error {
 			continue
 		}
 
-		if err := block.AddCheckpoint(id, checkpoint.Big()); err != nil {
+		if err := bl.AddCheckpoint(id, checkpoint.Big()); err != nil {
 			return errors.Wrap(err, "failed to add checkpoint in the block")
 		}
 	}
 	return nil
 }
 
-func (bl *Block) CreateProof(uid *big.Int) []byte {
+func (bl *checkpointBlock) CreateProof(uid *big.Int) []byte {
 	if !bl.built {
 		return nil
 	}
-	return merkle.CreateProof(uid, depth257, bl.tree.GetStructure(),
+	return merkle.CreateProof(uid, merkle.Depth257, bl.tree.GetStructure(),
 		bl.tree.DefaultNodes)
-}
-
-// CheckMembership checks membership.
-func CheckMembership(uid *big.Int, txHash, blockHash common.Hash,
-	proof []byte) bool {
-	return merkle.CheckMembership(uid, txHash.Bytes(),
-		blockHash.Bytes(), proof)
 }

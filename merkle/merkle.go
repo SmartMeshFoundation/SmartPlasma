@@ -10,7 +10,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	defaultDepth = 257
+)
+
 var (
+	// Default value to depth.
+	Depth257 = big.NewInt(defaultDepth)
+
 	one = big.NewInt(1)
 	two = big.NewInt(2)
 )
@@ -138,7 +145,7 @@ func CreateProof(uid, depth *big.Int, tree []map[string]common.Hash,
 }
 
 // CheckMembership checks membership.
-func CheckMembership(uid *big.Int, leaf, rootHash []byte,
+func CheckMembership(uid *big.Int, leaf, rootHash common.Hash,
 	proof []byte) bool {
 	if len(proof) == 0 || len(proof)%32 != 0 {
 		return false
@@ -146,7 +153,7 @@ func CheckMembership(uid *big.Int, leaf, rootHash []byte,
 
 	index := new(big.Int).Set(uid)
 
-	computedHash := leaf
+	computedHash := leaf.Bytes()
 
 	for i := 0; i < len(proof); i += 32 {
 		proofElement := proof[i : i+32]
@@ -158,7 +165,7 @@ func CheckMembership(uid *big.Int, leaf, rootHash []byte,
 		}
 		index = index.Div(index, big.NewInt(2))
 	}
-	return bytes.Equal(computedHash, rootHash)
+	return bytes.Equal(computedHash, rootHash.Bytes())
 }
 
 func sortKeys(dict map[string]common.Hash) []string {

@@ -13,9 +13,11 @@ import (
 	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/block"
+	"github.com/smartmeshfoundation/smartplasma/blockchan/block/transactions"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/transaction"
 	"github.com/smartmeshfoundation/smartplasma/contract/erc20token"
 	"github.com/smartmeshfoundation/smartplasma/contract/rootchain"
+	"github.com/smartmeshfoundation/smartplasma/merkle"
 )
 
 var (
@@ -275,8 +277,8 @@ func testTx(t *testing.T, prevBlock, uid,
 	return tx
 }
 
-func testBlock(t *testing.T, txs ...*transaction.Transaction) *block.Block {
-	plasmaBlock := block.NewBlock()
+func testBlock(t *testing.T, txs ...*transaction.Transaction) block.Block {
+	plasmaBlock := transactions.NewTxBlock()
 
 	for _, tx := range txs {
 		if err := plasmaBlock.AddTx(tx); err != nil {
@@ -321,7 +323,7 @@ func TestMediatorNormalFlow(t *testing.T) {
 	proof1 := plasmaBlock1.CreateProof(uid)
 
 	// validate transaction #1
-	validateTX1 := block.CheckMembership(uid, tx.Hash(),
+	validateTX1 := merkle.CheckMembership(uid, tx.Hash(),
 		plasmaBlock1.Hash(), proof1)
 	if !validateTX1 {
 		t.Fatal("tx1 invalid")
@@ -344,7 +346,7 @@ func TestMediatorNormalFlow(t *testing.T) {
 	proof2 := plasmaBlock2.CreateProof(uid)
 
 	// validate transaction #2
-	validateTX2 := block.CheckMembership(uid, tx2.Hash(),
+	validateTX2 := merkle.CheckMembership(uid, tx2.Hash(),
 		plasmaBlock2.Hash(), proof2)
 	if !validateTX2 {
 		t.Fatal("tx2 invalid")

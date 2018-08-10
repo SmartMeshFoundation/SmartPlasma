@@ -163,7 +163,7 @@ func TestLimit(t *testing.T) {
 
 	proof1 := CreateProof(uidMax, depth257, tree.GetStructure(), tree.DefaultNodes)
 
-	if !CheckMembership(uidMax, dummyVal.Bytes(), tree.root.Bytes(), proof1) {
+	if !CheckMembership(uidMax, dummyVal, tree.root, proof1) {
 		t.Fatal("membership is not confirmed")
 	}
 

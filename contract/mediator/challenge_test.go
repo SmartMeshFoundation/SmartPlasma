@@ -3,7 +3,7 @@ package mediator
 import (
 	"testing"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/block"
+	"github.com/smartmeshfoundation/smartplasma/merkle"
 )
 
 // test challenge #1
@@ -28,7 +28,7 @@ func TestChallengeNewOwner(t *testing.T) {
 
 	proof1 := plasmaBlock1.CreateProof(uid)
 
-	validateTX1 := block.CheckMembership(uid, txGood.Hash(),
+	validateTX1 := merkle.CheckMembership(uid, txGood.Hash(),
 		plasmaBlock1.Hash(), proof1)
 	if !validateTX1 {
 		t.Fatal("txGood invalid")
@@ -49,7 +49,7 @@ func TestChallengeNewOwner(t *testing.T) {
 
 	proof2 := plasmaBlock2.CreateProof(uid)
 
-	validateTX2 := block.CheckMembership(uid, txBad.Hash(),
+	validateTX2 := merkle.CheckMembership(uid, txBad.Hash(),
 		plasmaBlock2.Hash(), proof2)
 	if !validateTX2 {
 		t.Fatal("txBad invalid")
@@ -195,7 +195,7 @@ func TestChallengeDoubleSpending(t *testing.T) {
 
 	proof1 := plasmaBlock1.CreateProof(uid)
 
-	validateTX1 := block.CheckMembership(uid, txGood.Hash(),
+	validateTX1 := merkle.CheckMembership(uid, txGood.Hash(),
 		plasmaBlock1.Hash(), proof1)
 	if !validateTX1 {
 		t.Fatal("txGood invalid")
@@ -216,7 +216,7 @@ func TestChallengeDoubleSpending(t *testing.T) {
 
 	proof2 := plasmaBlock2.CreateProof(uid)
 
-	validateTX2 := block.CheckMembership(uid, txGood2.Hash(),
+	validateTX2 := merkle.CheckMembership(uid, txGood2.Hash(),
 		plasmaBlock2.Hash(), proof2)
 	if !validateTX2 {
 		t.Fatal("txGood2 invalid")
@@ -237,7 +237,7 @@ func TestChallengeDoubleSpending(t *testing.T) {
 
 	proof3 := plasmaBlock3.CreateProof(uid)
 
-	validateTX3 := block.CheckMembership(uid, txBad.Hash(),
+	validateTX3 := merkle.CheckMembership(uid, txBad.Hash(),
 		plasmaBlock3.Hash(), proof3)
 	if !validateTX3 {
 		t.Fatal("txBad invalid")

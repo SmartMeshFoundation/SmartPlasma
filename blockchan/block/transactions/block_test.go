@@ -1,4 +1,4 @@
-package block
+package transactions
 
 import (
 	"bytes"
@@ -65,7 +65,8 @@ func generateTXs(t *testing.T, number int,
 
 func validateTx(t *testing.T, tx *transaction.Transaction,
 	root, proof []byte) {
-	if !merkle.CheckMembership(tx.UID(), tx.Hash().Bytes(), root, proof) {
+	if !merkle.CheckMembership(tx.UID(), tx.Hash(),
+		common.BytesToHash(root), proof) {
 		t.Fatal("the transaction was incorrectly" +
 			" included in the block")
 	}
@@ -74,67 +75,67 @@ func validateTx(t *testing.T, tx *transaction.Transaction,
 func TestBlockAddTx(t *testing.T) {
 	number := 4
 	txs := generateTXs(t, number, 0)
-	block := NewBlock()
+	bl := NewTxBlock()
 
 	for _, tx := range txs {
-		if err := block.AddTx(tx); err != nil {
+		if err := bl.AddTx(tx); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if len(block.txs) != number {
-		t.Fatalf("tx number must be %d, got %d", number, len(block.txs))
+	if len(bl.txs) != number {
+		t.Fatalf("tx number must be %d, got %d", number, len(bl.txs))
 	}
 }
 
 func TestBlockBuild(t *testing.T) {
 	txs := generateTXs(t, numberTx, testPrevBlock)
-	block := NewBlock()
+	bl := NewTxBlock()
 
 	for _, tx := range txs {
-		if err := block.AddTx(tx); err != nil {
+		if err := bl.AddTx(tx); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	root, err := block.Build()
+	root, err := bl.Build()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, tx := range txs {
-		proof := merkle.CreateProof(tx.UID(), depth257,
-			block.tree.GetStructure(), block.tree.DefaultNodes)
+		proof := merkle.CreateProof(tx.UID(), merkle.Depth257,
+			bl.tree.GetStructure(), bl.tree.DefaultNodes)
 		validateTx(t, tx, root.Bytes(), proof)
 	}
 }
 
 func TestBlockEncodeDecode(t *testing.T) {
 	txs := generateTXs(t, numberTx, testPrevBlock)
-	block := NewBlock()
+	bl := NewTxBlock()
 
 	for _, tx := range txs {
-		if err := block.AddTx(tx); err != nil {
+		if err := bl.AddTx(tx); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	root1, err := block.Build()
+	root1, err := bl.Build()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	proof := merkle.CreateProof(txs[0].UID(), depth257,
-		block.tree.GetStructure(), block.tree.DefaultNodes)
+	proof := merkle.CreateProof(txs[0].UID(), merkle.Depth257,
+		bl.tree.GetStructure(), bl.tree.DefaultNodes)
 
-	raw, err := block.Marshal()
+	raw, err := bl.Marshal()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	reconstructed := NewBlock()
+	reconstructed := NewTxBlock()
 
-	if err := Unmarshal(raw, reconstructed); err != nil {
+	if err := reconstructed.Unmarshal(raw); err != nil {
 		t.Fatal(err)
 	}
 
@@ -153,15 +154,15 @@ func TestBlockEncodeDecode(t *testing.T) {
 func TestBlockAddExistsTx(t *testing.T) {
 	txs := generateTXs(t, numberTx, testPrevBlock)
 
-	block := NewBlock()
+	bl := NewTxBlock()
 
 	for _, tx := range txs {
-		if err := block.AddTx(tx); err != nil {
+		if err := bl.AddTx(tx); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	if err := block.AddTx(txs[0]); err == nil {
+	if err := bl.AddTx(txs[0]); err == nil {
 		t.Fatal("the transaction already exists in the block")
 	}
 }
