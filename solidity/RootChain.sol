@@ -377,17 +377,9 @@ contract RootChain is Ownable {
 
         Transaction.Tx memory challengeDecodedTx = challengeTx.createTx();
 
-        bytes32 lastNonceCandidate = bytes32(challengeDecodedTx.nonce);
         bytes32 moreNonceBytes = bytes32(moreNonce);
 
         require(moreNonce > challengeDecodedTx.nonce);
-        require(
-            lastNonceCandidate.checkMembership(
-                uid,
-                checkpointRoot,
-                checkpointProof
-            )
-        );
         require(
             moreNonceBytes.checkMembership(
                 uid,

@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -189,6 +190,14 @@ func newPlasmaTestTx(t *testing.T, i *instance, prevBlock, uid,
 		block: plasmaBlock,
 		proof: proof,
 		rawTx: rawTx,
+	}
+}
+
+func timeMachine(t *testing.T, adjustment time.Duration) {
+	if sim, ok := server.(backend.Simulator); ok {
+		if err := sim.AdjustTime(adjustment); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
