@@ -1,4 +1,4 @@
-package mediator
+package rootchain
 
 import (
 	"testing"
@@ -11,54 +11,13 @@ func TestCheckpointChallenge(t *testing.T) {
 
 	uid := testDeposit(t, i)
 
-	tx1 := testTx(t, zero, uid, one, zero, user1.From, user1)
-
-	plasmaBlock1 := testBlock(t, tx1)
-
-	ethTX, err := i.rootOwnerSession.NewBlock(plasmaBlock1.Hash())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !server.GoodTransaction(ethTX) {
-		t.Fatal("failed to create new block")
-	}
-
-	tx2 := testTx(t, one, uid, one, one, user2.From, user1)
-
-	plasmaBlock2 := testBlock(t, tx2)
-
-	ethTx2, err := i.rootOwnerSession.NewBlock(plasmaBlock2.Hash())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !server.GoodTransaction(ethTx2) {
-		t.Fatal("failed to create new block")
-	}
-
-	proof2 := plasmaBlock2.CreateProof(uid)
-	rawTx2 := txToBytes(t, tx2)
-
-	tx3 := testTx(t, two, uid, one, two, owner.From, user2)
-
-	plasmaBlock3 := testBlock(t, tx3)
-
-	ethTx3, err := i.rootOwnerSession.NewBlock(plasmaBlock3.Hash())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !server.GoodTransaction(ethTx3) {
-		t.Fatal("failed to create new block")
-	}
-
-	proof3 := plasmaBlock3.CreateProof(uid)
-	rawTx3 := txToBytes(t, tx3)
+	newPlasmaTestTx(t, i, zero, uid, one, zero, user1.From, user1)
+	tx2 := newPlasmaTestTx(t, i, one, uid, one, one, user2.From, user1)
+	tx3 := newPlasmaTestTx(t, i, two, uid, one, two, owner.From, user2)
 
 	chpt := checkpoints.NewBlock()
 
-	err = chpt.AddCheckpoint(uid, three)
+	err := chpt.AddCheckpoint(uid, three)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +39,7 @@ func TestCheckpointChallenge(t *testing.T) {
 	}
 
 	ethTx5, err := i.rootOwnerSession.ChallengeCheckpoint(uid, chptHash,
-		chptProof, three, rawTx2, proof2, two)
+		chptProof, three, tx2.rawTx, tx2.proof, two)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,17 +58,17 @@ func TestCheckpointChallenge(t *testing.T) {
 	}
 
 	suspiciousChpt, err := i.rootOwnerSession.CheckpointIsChallenge(uid,
-		chptHash, rawTx2)
+		chptHash, tx2.rawTx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if !suspiciousChpt {
-		t.Fatal("checkpoint suspicious")
+		t.Fatal("checkpoint not suspicious")
 	}
 
 	respondTx, err := i.rootOwnerSession.RespondCheckpointChallenge(uid,
-		chptHash, rawTx2, rawTx3, proof3, three)
+		chptHash, tx2.rawTx, tx3.rawTx, tx3.proof, three)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,7 +87,7 @@ func TestCheckpointChallenge(t *testing.T) {
 	}
 
 	suspiciousChpt, err = i.rootOwnerSession.CheckpointIsChallenge(uid,
-		chptHash, rawTx2)
+		chptHash, tx2.rawTx)
 	if err != nil {
 		t.Fatal(err)
 	}

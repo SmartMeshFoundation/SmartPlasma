@@ -1,8 +1,7 @@
 package rootchain
 
-// Change addChallenge and removeChallenge from private to public.
-/*
 import (
+	"bytes"
 	"math/big"
 	"os"
 	"testing"
@@ -13,89 +12,62 @@ import (
 
 	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
 	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
-	"github.com/smartmeshfoundation/smartplasma/contract/mediator"
-	"bytes"
-)
-
-const (
-	rawTx1data = "0x1"
-	rawTx2data = "0x2"
-	rawTx3data = "0x3"
-	rawTx4data = "0x4"
-	rawTx5data = "0x5"
+	"github.com/smartmeshfoundation/smartplasma/blockchan/block"
+	"github.com/smartmeshfoundation/smartplasma/blockchan/block/transactions"
+	"github.com/smartmeshfoundation/smartplasma/blockchan/transaction"
+	"github.com/smartmeshfoundation/smartplasma/contract/erc20token"
 )
 
 var (
-	uid = big.NewInt(123)
-
 	server backend.Backend
 
 	owner *account.PlasmaTransactOpts
+	user1 *account.PlasmaTransactOpts
+	user2 *account.PlasmaTransactOpts
 
-	challengeData = []*plasmaChallengeData{
-		{
-			challengeTx: []byte(rawTx1data),
-			blockNumber: big.NewInt(101),
-		},
-		{
-			challengeTx: []byte(rawTx2data),
-			blockNumber: big.NewInt(102),
-		},
-		{
-			challengeTx: []byte(rawTx3data),
-			blockNumber: big.NewInt(103),
-		},
-		{
-			challengeTx: []byte(rawTx4data),
-			blockNumber: big.NewInt(104),
-		},
-		{
-			challengeTx: []byte(rawTx5data),
-			blockNumber: big.NewInt(105),
-		},
-	}
+	one   = big.NewInt(1)
+	two   = big.NewInt(2)
+	three = big.NewInt(3)
+	four  = big.NewInt(4)
+	five  = big.NewInt(5)
+	zero  = big.NewInt(0)
 )
 
-type plasmaChallengeData struct {
-	challengeTx []byte
-	blockNumber *big.Int
-}
-
 type instance struct {
+	tokenOwnerSession *erc20token.ExampleTokenSession
+	tokenUser1Session *erc20token.ExampleTokenSession
+
 	rootOwnerSession *RootChainSession
-	rootChainAddr    common.Address
+	rootUser1Session *RootChainSession
+	rootUser2Session *RootChainSession
+
+	tokenAddr     common.Address
+	rootChainAddr common.Address
 }
 
-func challengeGenerator(number int) map[int]*plasmaChallengeData {
-	result := make(map[int]*plasmaChallengeData)
-	for i := 0; i < number; i++ {
-		key, _ := crypto.GenerateKey()
-		item := &plasmaChallengeData{
-			challengeTx: key.Y.Bytes(),
-			blockNumber: big.NewInt(1),
-		}
-		result[i] = item
-	}
-
-	return result
+type PlasmaTestTx struct {
+	tx    *transaction.Transaction
+	block block.Block
+	proof []byte
+	rawTx []byte
 }
 
 func newInstance(t *testing.T) *instance {
 	i := &instance{}
 
-	_, med, err := deployMediator(owner.TransactOpts)
+	rootChainAddr, _, err := Deploy(owner.TransactOpts, server)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	i.rootChainAddr, err = med.RootChain(&bind.CallOpts{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	i.rootChainAddr = rootChainAddr
 
 	i.rootOwnerSession = rootChainSession(t, owner.TransactOpts,
 		i.rootChainAddr)
-
+	i.rootUser1Session = rootChainSession(t, user1.TransactOpts,
+		i.rootChainAddr)
+	i.rootUser2Session = rootChainSession(t, user2.TransactOpts,
+		i.rootChainAddr)
 	return i
 }
 
@@ -109,332 +81,124 @@ func rootChainSession(t *testing.T, account *bind.TransactOpts,
 	return
 }
 
-func deployMediator(account *bind.TransactOpts) (address common.Address,
-	contract *mediator.Mediator, err error) {
-	address, contract, err = mediator.Deploy(account, server)
-	return
+func testDeposit(t *testing.T, i *instance) (uid *big.Int) {
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deposit(t, i, common.BigToAddress(key.X), common.BigToAddress(key.Y), one)
+
+	// receive logs with deposit. Get uid
+	logs, err := LogsDeposit(i.rootOwnerSession.Contract)
+	if err != nil {
+		t.Fatalf("failed to parse deposit logs %s", err)
+	}
+
+	// TODO: single deposit. Not applicable for multiple deposits.
+	if len(logs) != 1 {
+		t.Fatal("wrong number of logs")
+	}
+
+	return logs[0].Uid
+}
+
+func deposit(t *testing.T, i *instance,
+	account, token common.Address, amount *big.Int) {
+	tx, err := i.rootOwnerSession.Deposit(account, token, amount)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !server.GoodTransaction(tx) {
+		t.Fatal("failed to deposit")
+	}
+}
+
+func testTx(t *testing.T, prevBlock, uid,
+	amount *big.Int, nonce *big.Int, newOwner common.Address,
+	signer *account.PlasmaTransactOpts) *transaction.Transaction {
+	unsignedTx, err := transaction.NewTransaction(
+		prevBlock, uid, amount, nonce, newOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := signer.PlasmaSigner(signer.From, unsignedTx)
+	if err != nil {
+		t.Fatalf("failed to sign transaction %s", err)
+	}
+
+	addr, err := transaction.Sender(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(signer.From.Bytes(), addr.Bytes()) {
+		t.Fatal("addresses not equal")
+	}
+	return tx
+}
+
+func testBlock(t *testing.T, txs ...*transaction.Transaction) block.Block {
+	plasmaBlock := transactions.NewTxBlock()
+
+	for _, tx := range txs {
+		if err := plasmaBlock.AddTx(tx); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	_, err := plasmaBlock.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return plasmaBlock
+}
+
+func txToBytes(t *testing.T, tx *transaction.Transaction) []byte {
+	buf := bytes.NewBuffer([]byte{})
+	if err := tx.EncodeRLP(buf); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func newPlasmaTestTx(t *testing.T, i *instance, prevBlock, uid,
+	amount *big.Int, nonce *big.Int, newOwner common.Address,
+	signer *account.PlasmaTransactOpts) *PlasmaTestTx {
+
+	tx := testTx(t, prevBlock, uid, amount, nonce, newOwner, signer)
+
+	plasmaBlock := testBlock(t, tx)
+
+	ethTX, err := i.rootOwnerSession.NewBlock(plasmaBlock.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !server.GoodTransaction(ethTX) {
+		t.Fatal("failed to create new block")
+	}
+
+	proof := plasmaBlock.CreateProof(uid)
+	rawTx := txToBytes(t, tx)
+
+	return &PlasmaTestTx{
+		tx:    tx,
+		block: plasmaBlock,
+		proof: proof,
+		rawTx: rawTx,
+	}
 }
 
 func TestMain(m *testing.M) {
 	accounts := account.GenAccounts(3)
 	owner = accounts[0]
+	user1 = accounts[1]
+	user2 = accounts[2]
 
 	server = backend.NewSimulatedBackend(account.Addresses(accounts))
 
 	os.Exit(m.Run())
 }
-
-func TestAddChallenge(t *testing.T) {
-	i := newInstance(t)
-
-	for index, data := range challengeData {
-		tx, err := i.rootOwnerSession.AddChallenge(uid, data.challengeTx,
-			data.blockNumber)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !server.GoodTransaction(tx) {
-			t.Fatal("failed to add challenge")
-		}
-
-		str, err := i.rootOwnerSession.GetChallenge(uid,
-			big.NewInt(int64(index)))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.ChallengeBlock.Bytes(),
-				data.blockNumber.Bytes()) {
-			t.Fatal("challenge is wrong")
-		}
-
-		exists, err := i.rootOwnerSession.ChallengeExists(uid,
-			data.challengeTx)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !exists {
-			t.Fatal("challenge not found")
-		}
-	}
-
-	length, err := i.rootOwnerSession.ChallengesLength(uid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if length.Int64() != int64(len(challengeData)) {
-		t.Fatal("disputes length is wrong")
-	}
-}
-
-func TestRemoveChallengeFromMiddle(t *testing.T) {
-	i := newInstance(t)
-
-	var index int64 = 2
-
-	for index, data := range challengeData {
-		tx, err := i.rootOwnerSession.AddChallenge(uid, data.challengeTx,
-			data.blockNumber)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !server.GoodTransaction(tx) {
-			t.Fatal("failed to add challenge")
-		}
-
-		str, err := i.rootOwnerSession.GetChallenge(uid,
-			big.NewInt(int64(index)))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.ChallengeBlock.Bytes(),
-				data.blockNumber.Bytes()) {
-			t.Fatal("challenge is wrong")
-		}
-	}
-
-	tx, err := i.rootOwnerSession.RemoveChallenge(uid,
-		challengeData[index].challengeTx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !server.GoodTransaction(tx) {
-		t.Fatal("failed to remove challenge")
-	}
-
-	length, err := i.rootOwnerSession.ChallengesLength(uid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if length.Int64() != int64(len(challengeData)-1) {
-		t.Fatal("disputes length is wrong")
-	}
-
-	str, err := i.rootOwnerSession.GetChallenge(uid,
-		big.NewInt(index))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(str.ChallengeTx,
-		challengeData[len(challengeData)-1].challengeTx) {
-		t.Fatal("incorrect removal from the middle")
-	}
-}
-
-func TestRemoveChallengeFromStart(t *testing.T) {
-	i := newInstance(t)
-
-	var index int64 = 0
-
-	for index, data := range challengeData {
-		tx, err := i.rootOwnerSession.AddChallenge(uid, data.challengeTx,
-			data.blockNumber)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !server.GoodTransaction(tx) {
-			t.Fatal("failed to add challenge")
-		}
-
-		str, err := i.rootOwnerSession.GetChallenge(uid,
-			big.NewInt(int64(index)))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.ChallengeBlock.Bytes(),
-				data.blockNumber.Bytes()) {
-			t.Fatal("challenge is wrong")
-		}
-	}
-
-	tx, err := i.rootOwnerSession.RemoveChallenge(uid,
-		challengeData[index].challengeTx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !server.GoodTransaction(tx) {
-		t.Fatal("failed to remove challenge")
-	}
-
-	length, err := i.rootOwnerSession.ChallengesLength(uid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if length.Int64() != int64(len(challengeData)-1) {
-		t.Fatal("disputes length is wrong")
-	}
-
-	str, err := i.rootOwnerSession.GetChallenge(uid,
-		big.NewInt(index))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !bytes.Equal(str.ChallengeTx,
-		challengeData[len(challengeData)-1].challengeTx) {
-		t.Fatal("incorrect removal from the start")
-	}
-}
-
-func TestRemoveChallengeFromFinish(t *testing.T) {
-	i := newInstance(t)
-
-	var index int64 = 4
-
-	for index, data := range challengeData {
-		tx, err := i.rootOwnerSession.AddChallenge(uid, data.challengeTx,
-			data.blockNumber)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !server.GoodTransaction(tx) {
-			t.Fatal("failed to add challenge")
-		}
-
-		str, err := i.rootOwnerSession.GetChallenge(uid,
-			big.NewInt(int64(index)))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.ChallengeBlock.Bytes(),
-				data.blockNumber.Bytes()) {
-			t.Fatal("challenge is wrong")
-		}
-	}
-
-	tx, err := i.rootOwnerSession.RemoveChallenge(uid,
-		challengeData[index].challengeTx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !server.GoodTransaction(tx) {
-		t.Fatal("failed to remove challenge")
-	}
-
-	length, err := i.rootOwnerSession.ChallengesLength(uid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if length.Int64() != int64(len(challengeData)-1) {
-		t.Fatal("disputes length is wrong")
-	}
-
-	str, err := i.rootOwnerSession.GetChallenge(uid,
-		big.NewInt(index))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(str.ChallengeTx) != 0 {
-		t.Fatal("incorrect removal from the finish")
-	}
-}
-
-func TestRemoveAllChallenge(t *testing.T) {
-	i := newInstance(t)
-
-	for index, data := range challengeData {
-		tx, err := i.rootOwnerSession.AddChallenge(uid, data.challengeTx,
-			data.blockNumber)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !server.GoodTransaction(tx) {
-			t.Fatal("failed to add challenge")
-		}
-
-		str, err := i.rootOwnerSession.GetChallenge(uid,
-			big.NewInt(int64(index)))
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if !bytes.Equal(str.ChallengeTx, data.challengeTx) ||
-			!bytes.Equal(str.ChallengeBlock.Bytes(),
-				data.blockNumber.Bytes()) {
-			t.Fatal("challenge is wrong")
-		}
-	}
-
-	for _, data := range challengeData {
-		tx, err := i.rootOwnerSession.RemoveChallenge(uid,
-			data.challengeTx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !server.GoodTransaction(tx) {
-			t.Fatal("failed to remove challenge")
-		}
-	}
-
-	_, err := i.rootOwnerSession.RemoveChallenge(uid,
-		challengeData[0].challengeTx)
-	if err == nil {
-		t.Fatal("failed to remove challenge")
-	}
-
-	length, err := i.rootOwnerSession.ChallengesLength(uid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if length.Int64() != 0 {
-		t.Fatal("disputes length is wrong")
-	}
-}
-
-func TestMegaChallenge(t *testing.T) {
-	i := newInstance(t)
-
-	var number int64 = 1000
-
-	chs := challengeGenerator(int(number))
-
-	for _, data := range chs {
-		tx, err := i.rootOwnerSession.AddChallenge(uid, data.challengeTx,
-			data.blockNumber)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !server.GoodTransaction(tx) {
-			t.Fatal("failed to add challenge")
-		}
-	}
-
-	length, err := i.rootOwnerSession.ChallengesLength(uid)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if length.Int64() != number {
-		t.Fatal("disputes length is wrong")
-	}
-
-	for _, data := range chs {
-		tx, err := i.rootOwnerSession.RemoveChallenge(uid,
-			data.challengeTx)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !server.GoodTransaction(tx) {
-			t.Fatal("failed to remove challenge")
-		}
-	}
-
-	length, err = i.rootOwnerSession.ChallengesLength(uid)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if length.Int64() != 0 {
-		t.Fatal("disputes length is wrong")
-	}
-}*/
