@@ -30,7 +30,7 @@ contract RootChain is Ownable {
 
     struct exit {
         // 0 - did not request to exit,
-        // 1 - in challenge proceeding, it blocks a exit, TODO: remove it
+        // 1 - in challenge proceeding, it blocks a exit,
         // 2 - in anticipation of exit,
         // 3 - a exit was made.
         uint256 state;
@@ -265,7 +265,7 @@ contract RootChain is Ownable {
         public
     {
         require(checkpoints[checkpointRoot] != 0 &&
-        checkpoints[checkpointRoot].add(challengePeriod) > now); // TODO: more strong time check
+        checkpoints[checkpointRoot].add(challengePeriod) > now);
         require(!checkpointIsChallenge(uid, checkpointRoot, lastTx));
 
         Transaction.Tx memory lastTxDecoded = lastTx.createTx();
