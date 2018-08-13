@@ -1,6 +1,6 @@
 pragma solidity ^0.4.23;
 
-import "./libraries/openzeppelin-solidity/contracts/ownership/Ownable.sol";
+import "./libraries/ownership/Ownable.sol";
 
 contract Token {
     function approve(address _spender, uint256 _value) public returns (bool);

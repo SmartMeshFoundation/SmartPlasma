@@ -11,12 +11,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
-	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
-	"github.com/smartmeshfoundation/smartplasma/blockchan/block"
-	"github.com/smartmeshfoundation/smartplasma/blockchan/block/transactions"
-	"github.com/smartmeshfoundation/smartplasma/blockchan/transaction"
-	"github.com/smartmeshfoundation/smartplasma/contract/erc20token"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
+	"github.com/SmartMeshFoundation/SmartPlasma/contract/erc20token"
 )
 
 var (

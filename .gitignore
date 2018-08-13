@@ -14,4 +14,4 @@
 .idea
 
 vendor
-Gopkg.lock
+#Gopkg.lock

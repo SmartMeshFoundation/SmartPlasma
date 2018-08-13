@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/transaction"
-	"github.com/smartmeshfoundation/smartplasma/merkle"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
+	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
 // txBlock object.

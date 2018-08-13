@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/block/checkpoints"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
 )
 
 func TestCheckpointChallenge(t *testing.T) {

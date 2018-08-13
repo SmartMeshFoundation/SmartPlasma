@@ -3,8 +3,8 @@ package rootchain
 import (
 	"testing"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
-	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
 )
 
 func TestDeploy(t *testing.T) {

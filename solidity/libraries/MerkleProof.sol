@@ -8,7 +8,7 @@ library Merkle {
      * @param rootHash The root of the merkle tree.
      * @param proof The proof of the leaf.
      */
-    function checkMembership(bytes32 leaf, uint256 index, bytes32 rootHash, bytes proof)
+    function verifyProof(bytes32 leaf, uint256 index, bytes32 rootHash, bytes proof)
         internal
         pure
         returns (bool)

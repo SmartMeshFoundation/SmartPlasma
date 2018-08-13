@@ -5,8 +5,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
-	"github.com/smartmeshfoundation/smartplasma/contract/rootchain"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
 )
 
 // NewMediatorSession returns Mediator session.

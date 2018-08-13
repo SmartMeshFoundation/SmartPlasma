@@ -1,10 +1,10 @@
 pragma solidity ^0.4.23;
 
-import "./libraries/datastructures/PlasmaLib.sol";
+import "./libraries/PlasmaLib.sol";
 import "./libraries/datastructures/Transaction.sol";
-import "./libraries/merkle.sol";
-import "./libraries/openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./libraries/openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "./libraries/MerkleProof.sol";
+import "./libraries/ownership/Ownable.sol";
+import "./libraries/math/SafeMath.sol";
 
 contract RootChain is Ownable {
     using Merkle for bytes32;
@@ -125,14 +125,14 @@ contract RootChain is Ownable {
         bytes32 blockRoot = childChain[lastTxBlockNum];
 
         require(
-            prevTxHash.checkMembership(
+            prevTxHash.verifyProof(
                 prevDecodedTx.uid,
                 prevBlockRoot,
                 previousTxProof
             )
         );
         require(
-            txHash.checkMembership(
+            txHash.verifyProof(
                 decodedTx.uid,
                 blockRoot,
                 lastTxProof
@@ -181,7 +181,7 @@ contract RootChain is Ownable {
         bytes32 blockRoot = childChain[lastTxBlockNum];
 
         require(
-            prevTxHash.checkMembership(
+            prevTxHash.verifyProof(
                 prevDecodedTx.uid,
                 prevBlockRoot,
                 previousTxProof
@@ -189,7 +189,7 @@ contract RootChain is Ownable {
         );
 
         require(
-            txHash.checkMembership(
+            txHash.verifyProof(
                 decodedTx.uid,
                 blockRoot,
                 lastTxProof
@@ -227,7 +227,7 @@ contract RootChain is Ownable {
         bytes32 txHash = challengeDecodedTx.hash;
         bytes32 blockRoot = childChain[challengeBlockNum];
 
-        require(txHash.checkMembership(uid, blockRoot, proof));
+        require(txHash.verifyProof(uid, blockRoot, proof));
 
         // test challenge #1 & test challenge #2
         if (exitDecodedTx.newOwner == challengeDecodedTx.signer &&
@@ -276,14 +276,14 @@ contract RootChain is Ownable {
         bytes32 wrongNonceHash = bytes32(wrongNonce);
 
         require(
-            txHash.checkMembership(
+            txHash.verifyProof(
                 uid,
                 blockRoot,
                 lastTxProof
             )
         );
         require(
-            wrongNonceHash.checkMembership(
+            wrongNonceHash.verifyProof(
                 uid,
                 checkpointRoot,
                 checkpointProof
@@ -325,7 +325,7 @@ contract RootChain is Ownable {
         bytes32 txHash = respondDecodedTx.hash;
         bytes32 blockRoot = childChain[blockNum];
 
-        require(txHash.checkMembership(uid, blockRoot, proof));
+        require(txHash.verifyProof(uid, blockRoot, proof));
 
         removeChallenge(uid, challengeTx);
 
@@ -357,7 +357,7 @@ contract RootChain is Ownable {
         bytes32 txHash = respondDecodedTx.hash;
         bytes32 blockRoot = childChain[blockNum];
 
-        require(txHash.checkMembership(uid, blockRoot, proof));
+        require(txHash.verifyProof(uid, blockRoot, proof));
 
         removeCheckpointChallenge(uid, checkpointRoot, challengeTx);
     }
@@ -381,7 +381,7 @@ contract RootChain is Ownable {
 
         require(moreNonce > challengeDecodedTx.nonce);
         require(
-            moreNonceBytes.checkMembership(
+            moreNonceBytes.verifyProof(
                 uid,
                 historicalCheckpointRoot,
                 historicalCheckpointProof
