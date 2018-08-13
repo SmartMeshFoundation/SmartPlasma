@@ -13,7 +13,8 @@ const (
 )
 
 var (
-	BlocksBucket = "blocks"
+	BlocksBucket      = "blocks"
+	CheckpointsBucket = "checkpoints"
 )
 
 // DB object for storage data to filesystem.
