@@ -1,8 +1,10 @@
+sudo: true
+dist: xenial
+
 language: go
 
 go:
 - "1.10"
-- md-checkpoint
 
 git:
   depth: 1
@@ -14,17 +16,15 @@ env:
 - DEP_VERSION="0.5.0"
 
 before_install:
-- curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
-- chmod +x $GOPATH/bin/dep
 - sudo add-apt-repository ppa:ethereum/ethereum -y
 - sudo apt-get update -y
 - sudo apt-get install solc -y
-
-install:
-  go get -t ./...
+- curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 - dep ensure
 - go get github.com/ethereum/go-ethereum/cmd/abigen
 - go generate github.com/SmartMeshFoundation/SmartPlasma/solidity
 
+install: true
+
 script:
-- go test -v ./...
+- go test ./...
