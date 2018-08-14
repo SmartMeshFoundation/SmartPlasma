@@ -61,6 +61,7 @@ func (tr *Tree) Root() common.Hash {
 	return tr.root
 }
 
+// GetStructure returns source merkle tree.
 func (tr *Tree) GetStructure() []map[string]common.Hash {
 	return tr.tree
 }
