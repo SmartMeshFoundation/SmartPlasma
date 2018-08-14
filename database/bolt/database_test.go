@@ -26,7 +26,7 @@ func TestDB(t *testing.T) {
 
 	defer os.RemoveAll(dir)
 
-	database, err := NewDB(filepath.Join(dir, dbName), nil)
+	database, err := NewDB(filepath.Join(dir, dbName), BlocksBucket, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

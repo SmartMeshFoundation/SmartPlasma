@@ -10,7 +10,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	defaultDepth = 257
+)
+
 var (
+	// Default value to depth.
+	Depth257 = big.NewInt(defaultDepth)
+
 	one = big.NewInt(1)
 	two = big.NewInt(2)
 )
@@ -18,7 +25,7 @@ var (
 // Tree is structure to storage Merkle tree.
 type Tree struct {
 	root         common.Hash
-	Tree         []map[string]common.Hash
+	tree         []map[string]common.Hash
 	depth        *big.Int
 	DefaultNodes map[string]common.Hash
 }
@@ -40,10 +47,10 @@ func NewTree(leaves map[string]common.Hash, depth *big.Int) (*Tree, error) {
 	tree.DefaultNodes = defaultNodes
 
 	if leaves != nil {
-		tree.Tree = create(leaves, depth, defaultNodes)
-		tree.root = tree.Tree[len(tree.Tree)-1]["0"]
+		tree.tree = create(leaves, depth, defaultNodes)
+		tree.root = tree.tree[len(tree.tree)-1]["0"]
 	} else {
-		tree.Tree = []map[string]common.Hash{}
+		tree.tree = []map[string]common.Hash{}
 		tree.root = defaultNodes[new(big.Int).Sub(depth, big.NewInt(1)).String()]
 	}
 	return tree, nil
@@ -52,6 +59,10 @@ func NewTree(leaves map[string]common.Hash, depth *big.Int) (*Tree, error) {
 // Root returns Merkle root.
 func (tr *Tree) Root() common.Hash {
 	return tr.root
+}
+
+func (tr *Tree) GetStructure() []map[string]common.Hash {
+	return tr.tree
 }
 
 func create(leaves map[string]common.Hash, depth *big.Int,
@@ -134,7 +145,7 @@ func CreateProof(uid, depth *big.Int, tree []map[string]common.Hash,
 }
 
 // CheckMembership checks membership.
-func CheckMembership(uid *big.Int, leaf, rootHash []byte,
+func CheckMembership(uid *big.Int, leaf, rootHash common.Hash,
 	proof []byte) bool {
 	if len(proof) == 0 || len(proof)%32 != 0 {
 		return false
@@ -142,7 +153,7 @@ func CheckMembership(uid *big.Int, leaf, rootHash []byte,
 
 	index := new(big.Int).Set(uid)
 
-	computedHash := leaf
+	computedHash := leaf.Bytes()
 
 	for i := 0; i < len(proof); i += 32 {
 		proofElement := proof[i : i+32]
@@ -154,7 +165,7 @@ func CheckMembership(uid *big.Int, leaf, rootHash []byte,
 		}
 		index = index.Div(index, big.NewInt(2))
 	}
-	return bytes.Equal(computedHash, rootHash)
+	return bytes.Equal(computedHash, rootHash.Bytes())
 }
 
 func sortKeys(dict map[string]common.Hash) []string {

@@ -10,12 +10,13 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/account"
-	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
-	"github.com/smartmeshfoundation/smartplasma/blockchan/block"
-	"github.com/smartmeshfoundation/smartplasma/blockchan/transaction"
-	"github.com/smartmeshfoundation/smartplasma/contract/erc20token"
-	"github.com/smartmeshfoundation/smartplasma/contract/rootchain"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
+	"github.com/SmartMeshFoundation/SmartPlasma/contract/erc20token"
+	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
 )
 
 var (
@@ -47,6 +48,13 @@ type instance struct {
 	mediatorAddr  common.Address
 	tokenAddr     common.Address
 	rootChainAddr common.Address
+}
+
+type PlasmaTestTx struct {
+	tx    *transaction.Transaction
+	block block.Block
+	proof []byte
+	rawTx []byte
 }
 
 func newInstance(t *testing.T) *instance {
@@ -275,8 +283,8 @@ func testTx(t *testing.T, prevBlock, uid,
 	return tx
 }
 
-func testBlock(t *testing.T, txs ...*transaction.Transaction) *block.Block {
-	plasmaBlock := block.NewBlock()
+func testBlock(t *testing.T, txs ...*transaction.Transaction) block.Block {
+	plasmaBlock := transactions.NewTxBlock()
 
 	for _, tx := range txs {
 		if err := plasmaBlock.AddTx(tx); err != nil {
@@ -299,16 +307,15 @@ func txToBytes(t *testing.T, tx *transaction.Transaction) []byte {
 	return buf.Bytes()
 }
 
-func TestMediatorNormalFlow(t *testing.T) {
-	i := newInstance(t)
+func newPlasmaTestTx(t *testing.T, i *instance, prevBlock, uid,
+	amount *big.Int, nonce *big.Int, newOwner common.Address,
+	signer *account.PlasmaTransactOpts) *PlasmaTestTx {
 
-	uid := testDeposit(t, i)
+	tx := testTx(t, prevBlock, uid, amount, nonce, newOwner, signer)
 
-	tx := testTx(t, zero, uid, one, zero, user1.From, user1)
+	plasmaBlock := testBlock(t, tx)
 
-	plasmaBlock1 := testBlock(t, tx)
-
-	ethTX, err := i.rootOwnerSession.NewBlock(plasmaBlock1.Hash())
+	ethTX, err := i.rootOwnerSession.NewBlock(plasmaBlock.Hash())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,44 +324,27 @@ func TestMediatorNormalFlow(t *testing.T) {
 		t.Fatal("failed to create new block")
 	}
 
-	// create proof to transaction #1
-	proof1 := plasmaBlock1.CreateProof(uid)
+	proof := plasmaBlock.CreateProof(uid)
+	rawTx := txToBytes(t, tx)
 
-	// validate transaction #1
-	validateTX1 := block.CheckMembership(uid, tx.Hash(),
-		plasmaBlock1.Hash(), proof1)
-	if !validateTX1 {
-		t.Fatal("tx1 invalid")
+	return &PlasmaTestTx{
+		tx:    tx,
+		block: plasmaBlock,
+		proof: proof,
+		rawTx: rawTx,
 	}
+}
 
-	tx2 := testTx(t, one, uid, one, one, user2.From, user1)
+func TestMediatorNormalFlow(t *testing.T) {
+	i := newInstance(t)
 
-	plasmaBlock2 := testBlock(t, tx2)
+	uid := testDeposit(t, i)
 
-	ethTX2, err := i.rootOwnerSession.NewBlock(plasmaBlock2.Hash())
-	if err != nil {
-		t.Fatal(err)
-	}
+	tx1 := newPlasmaTestTx(t, i, zero, uid, one, zero, user1.From, user1)
+	tx2 := newPlasmaTestTx(t, i, one, uid, one, one, user2.From, user1)
 
-	if !server.GoodTransaction(ethTX2) {
-		t.Fatal("failed to create new block")
-	}
-
-	// create proof to transaction #2
-	proof2 := plasmaBlock2.CreateProof(uid)
-
-	// validate transaction #2
-	validateTX2 := block.CheckMembership(uid, tx2.Hash(),
-		plasmaBlock2.Hash(), proof2)
-	if !validateTX2 {
-		t.Fatal("tx2 invalid")
-	}
-
-	rawTX1 := txToBytes(t, tx)
-	rawTX2 := txToBytes(t, tx2)
-
-	ethTX3, err := i.rootUser2Session.StartExit(rawTX1, proof1, one,
-		rawTX2, proof2, two)
+	ethTX3, err := i.rootUser2Session.StartExit(tx1.rawTx, tx1.proof, one,
+		tx2.rawTx, tx2.proof, two)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -374,8 +364,8 @@ func TestMediatorNormalFlow(t *testing.T) {
 	// + 3 week
 	timeMachine(t, time.Duration(504*time.Hour))
 
-	withdraw(t, i.mediatorUser2Session, rawTX1, proof1,
-		one, rawTX2, proof2, two, true)
+	withdraw(t, i.mediatorUser2Session, tx1.rawTx, tx1.proof,
+		one, tx2.rawTx, tx2.proof, two, true)
 
 	// withdraw test 1
 	logsTransfer, err := erc20token.LogsTransfer(i.tokenOwnerSession.Contract)
@@ -393,6 +383,15 @@ func TestMediatorNormalFlow(t *testing.T) {
 		t.Fatal("invalid withdraw")
 	}
 
+	amount, err := i.rootUser1Session.Wallet(common.BigToHash(uid))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if amount.Int64() != 0 {
+		t.Fatal("the coin is not spent")
+	}
+
 	exits2, err := i.rootUser2Session.Exits(uid)
 	if err != nil {
 		t.Fatal(err)
@@ -403,8 +402,8 @@ func TestMediatorNormalFlow(t *testing.T) {
 	}
 
 	// withdraw test 2
-	withdraw(t, i.mediatorUser2Session, rawTX1, proof1,
-		one, rawTX2, proof2, two, false)
+	withdraw(t, i.mediatorUser2Session, tx1.rawTx, tx1.proof,
+		one, tx2.rawTx, tx2.proof, two, false)
 }
 
 func TestMediatorDeposit(t *testing.T) {

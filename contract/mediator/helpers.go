@@ -5,7 +5,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
 )
 
 // NewMediatorSession returns Mediator session.
@@ -34,14 +35,33 @@ func Deploy(account *bind.TransactOpts,
 		return common.Address{}, nil, err
 	}
 
-	_, err = server.Mine(tx)
+	if !server.GoodTransaction(tx) {
+		return common.Address{}, nil,
+			errors.New("failed to deploy Mediator contract")
+	}
+
+	plasmaAddr, plasmaContract, err := rootchain.Deploy(account, server)
 	if err != nil {
 		return common.Address{}, nil, err
 	}
 
-	if !server.GoodTransaction(tx) {
+	tx2, err := plasmaContract.TransferOwnership(account, addr)
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+
+	if !server.GoodTransaction(tx2) {
 		return common.Address{}, nil,
-			errors.New("failed to deploy Mediator contract")
+			errors.New("failed to transfer ownership")
+	}
+
+	joinTx, err := contract.JoinPlasma(account, plasmaAddr)
+	if err != nil {
+		return common.Address{}, nil, err
+	}
+	if !server.GoodTransaction(joinTx) {
+		return common.Address{}, nil,
+			errors.New("failed to join Plasma")
 	}
 
 	return addr, contract, nil

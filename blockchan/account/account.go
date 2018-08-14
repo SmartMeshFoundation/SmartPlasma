@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/transaction"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
 )
 
 // PlasmaSignerFn is a signer function callback when requires a method

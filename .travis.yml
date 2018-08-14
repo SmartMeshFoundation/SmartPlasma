@@ -1,0 +1,30 @@
+sudo: true
+dist: xenial
+
+language: go
+
+go:
+- "1.10"
+
+git:
+  depth: 1
+
+notifications:
+  email: false
+
+env:
+- DEP_VERSION="0.5.0"
+
+before_install:
+- sudo add-apt-repository ppa:ethereum/ethereum -y
+- sudo apt-get update -y
+- sudo apt-get install solc -y
+- curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+- dep ensure
+- go get github.com/ethereum/go-ethereum/cmd/abigen
+- go generate github.com/SmartMeshFoundation/SmartPlasma/solidity
+
+install: true
+
+script:
+- go test ./...

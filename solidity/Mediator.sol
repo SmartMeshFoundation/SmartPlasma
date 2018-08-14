@@ -1,7 +1,6 @@
 pragma solidity ^0.4.23;
 
-import "./libraries/openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./RootChain.sol";
+import "./libraries/ownership/Ownable.sol";
 
 contract Token {
     function approve(address _spender, uint256 _value) public returns (bool);
@@ -17,6 +16,24 @@ contract Token {
     function transferFrom(address from, address to, uint256 value) public returns (bool);
 }
 
+contract RootChain {
+    function deposit(
+        address account,
+        address currency,
+        uint256 amount
+    ) public returns (bytes32);
+
+    function finishExit(
+        address account,
+        bytes previousTx,
+        bytes previousTxProof,
+        uint256 previousTxBlockNum,
+        bytes lastTx,
+        bytes lastTxProof,
+        uint256 lastTxBlockNum
+    ) public returns (bytes32);
+}
+
 /**
  * @title Mediator
  */
@@ -30,8 +47,10 @@ contract Mediator is Ownable {
         uint amount;
     }
 
-    constructor() public {
-        rootChain = new RootChain(msg.sender);
+    constructor() public {}
+
+    function joinPlasma(address plasma) public onlyOwner {
+        rootChain = RootChain(plasma);
     }
 
     function checkToken(address addr) view public returns(bool) {

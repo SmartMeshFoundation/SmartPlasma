@@ -5,7 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"github.com/smartmeshfoundation/smartplasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
 )
 
 // NewRootChainSession returns RootChain session.
@@ -31,11 +31,6 @@ func Deploy(account *bind.TransactOpts,
 	server backend.Backend) (common.Address, *RootChain, error) {
 	addr, tx, contract, err := DeployRootChain(account,
 		server.Connect(), account.From)
-	if err != nil {
-		return common.Address{}, nil, err
-	}
-
-	_, err = server.Mine(tx)
 	if err != nil {
 		return common.Address{}, nil, err
 	}
