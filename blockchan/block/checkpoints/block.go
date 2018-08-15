@@ -9,8 +9,14 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
+
+type CheckpointBlock interface {
+	block.Block
+	AddCheckpoint(uid, number *big.Int) error
+}
 
 // checkpointBlock object.
 type checkpointBlock struct {

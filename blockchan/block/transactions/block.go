@@ -11,9 +11,15 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
+
+type TxBlock interface {
+	block.Block
+	AddTx(tx *transaction.Transaction) error
+}
 
 // txBlock object.
 type txBlock struct {

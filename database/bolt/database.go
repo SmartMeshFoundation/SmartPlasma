@@ -1,7 +1,6 @@
 package bolt
 
 import (
-	"strconv"
 	"sync"
 
 	"github.com/coreos/bbolt"
@@ -61,8 +60,7 @@ func (d *DB) Close() error {
 	return d.database.Close()
 }
 
-// Set adds value to new block.
-func (d *DB) Set(val []byte) error {
+func (d *DB) Set(key, val []byte) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -71,16 +69,12 @@ func (d *DB) Set(val []byte) error {
 		if bucket == nil {
 			return bolt.ErrBucketNotFound
 		}
-		number, err := bucket.NextSequence()
-		if err != nil {
-			return err
-		}
-		return bucket.Put(strconv.AppendUint(nil, number, 10), val)
+		return bucket.Put(key, val)
 	})
 }
 
 // Get gets value by key.
-func (d *DB) Get(key uint64) ([]byte, error) {
+func (d *DB) Get(key []byte) ([]byte, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
@@ -91,26 +85,8 @@ func (d *DB) Get(key uint64) ([]byte, error) {
 		if bucket == nil {
 			return bolt.ErrBucketNotFound
 		}
-		val = bucket.Get(strconv.AppendUint(nil, key, 10))
+		val = bucket.Get(key)
 		return nil
 	})
 	return val, err
-}
-
-// Current gets current block number.
-func (d *DB) Current() (uint64, error) {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	var sequence uint64
-
-	err := d.database.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(d.bucket)
-		if bucket == nil {
-			return bolt.ErrBucketNotFound
-		}
-		sequence = bucket.Sequence()
-		return nil
-	})
-	return sequence, err
 }

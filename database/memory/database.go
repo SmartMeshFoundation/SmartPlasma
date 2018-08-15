@@ -1,13 +1,16 @@
 package memory
 
-import "sync"
+import (
+	"math/big"
+	"sync"
+)
 
 // DB object for in memory storage.
 // It is not used in production.
 type DB struct {
 	mtx    sync.Mutex
 	last   uint64
-	blocks map[uint64][]byte
+	blocks map[string][]byte
 }
 
 // NewDB creates new database.
@@ -15,7 +18,7 @@ func NewDB() *DB {
 	return &DB{
 		mtx:    sync.Mutex{},
 		last:   0,
-		blocks: make(map[uint64][]byte),
+		blocks: make(map[string][]byte),
 	}
 }
 
@@ -24,32 +27,23 @@ func (d *DB) Close() error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	d.blocks = make(map[uint64][]byte)
+	d.blocks = make(map[string][]byte)
 	return nil
 }
 
-// Set adds value to new block.
-func (d *DB) Set(val []byte) error {
+func (d *DB) Set(key, val []byte) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	d.blocks[d.last+1] = val
+	d.blocks[string(key)] = val
 	d.last++
 	return nil
 }
 
 // Get gets value by key. Block number 0 is always empty.
-func (d *DB) Get(key uint64) ([]byte, error) {
+func (d *DB) Get(key []byte) ([]byte, error) {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()
 
-	return d.blocks[key], nil
-}
-
-// Current gets current block number.
-func (d *DB) Current() (uint64, error) {
-	d.mtx.Lock()
-	defer d.mtx.Unlock()
-
-	return d.last, nil
+	return d.blocks[new(big.Int).SetBytes(key).String()], nil
 }

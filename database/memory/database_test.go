@@ -1,6 +1,11 @@
 package memory
 
-import "testing"
+import (
+	"math/big"
+	"strconv"
+	"sync"
+	"testing"
+)
 
 var (
 	testVal = []byte("")
@@ -11,15 +16,21 @@ func TestDBConcurrent(t *testing.T) {
 
 	e := make(chan error)
 
+	var count int64
+
+	mtx := sync.Mutex{}
+
 	db := NewDB()
 	go func() {
 		for {
-			cur, err := db.Current()
+			mtx.Lock()
+			cur := count
+			mtx.Unlock()
+
+			_, err := db.Get(new(big.Int).SetInt64(cur + 1).Bytes())
 			if err != nil {
-				<-e
-				return
+				e <- err
 			}
-			db.Get(cur + 1)
 		}
 	}()
 
@@ -28,16 +39,18 @@ func TestDBConcurrent(t *testing.T) {
 			break
 		}
 
-		err := db.Set(testVal)
+		mtx.Lock()
+		cur := count
+		mtx.Unlock()
+
+		err := db.Set(strconv.AppendInt(nil, cur, 10), testVal)
 		if err != nil {
 			t.Fatal(err)
 		}
 		i--
-	}
-
-	_, err := db.Current()
-	if err != nil {
-		t.Fatal(err)
+		mtx.Lock()
+		count++
+		mtx.Unlock()
 	}
 
 	select {
