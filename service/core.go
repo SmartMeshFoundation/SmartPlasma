@@ -2,18 +2,24 @@ package service
 
 import (
 	"context"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
 	"github.com/SmartMeshFoundation/SmartPlasma/database"
 )
 
+// PlasmaCash defines PlasmaCash methods.
+type PlasmaCash interface {
+	// TODO
+}
+
+// Service implements PlasmaCash methods.
 type Service struct {
 	currentBlock transactions.TxBlock
 	currentChpt  checkpoints.CheckpointBlock
@@ -21,17 +27,11 @@ type Service struct {
 	chptBase     database.Database
 	session      *rootchain.RootChainSession
 	backend      backend.Backend
-
-	mtx         sync.Mutex
-	blockNumber uint64
 }
 
+// NewService creates new PlasmaCash service.
 func NewService(session *rootchain.RootChainSession, backend backend.Backend,
-	blockBase, chptBase database.Database) (*Service, error) {
-	blk, err := session.BlockNumber()
-	if err != nil {
-		return nil, err
-	}
+	blockBase, chptBase database.Database) *Service {
 
 	return &Service{
 		currentChpt:  checkpoints.NewBlock(),
@@ -40,13 +40,11 @@ func NewService(session *rootchain.RootChainSession, backend backend.Backend,
 		chptBase:     chptBase,
 		session:      session,
 		backend:      backend,
-		mtx:          sync.Mutex{},
-		blockNumber:  blk.Uint64(),
-	}, nil
+	}
 }
 
-func (s *Service) mineTx(tx *types.Transaction, ctx context.Context) error {
-	tr, err := s.backend.Mine(tx, ctx)
+func (s *Service) mineTx(ctx context.Context, tx *types.Transaction) error {
+	tr, err := s.backend.Mine(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -55,4 +53,14 @@ func (s *Service) mineTx(tx *types.Transaction, ctx context.Context) error {
 		return errors.New("transaction execution failed")
 	}
 	return nil
+}
+
+func buildBlockFromBytes(blk block.Block, raw []byte) error {
+	err := blk.Unmarshal(raw)
+	if err != nil {
+		return err
+	}
+
+	_, err = blk.Build()
+	return err
 }

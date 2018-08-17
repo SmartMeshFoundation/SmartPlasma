@@ -4,46 +4,50 @@ import (
 	"bytes"
 	"context"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
-func TestServiceAcceptTransaction(t *testing.T) {
-	instance := newInstance(t)
+func TestAcceptTransaction(t *testing.T) {
+	i := newInstance(t)
 	tx := testTx(t, zero, one, two, three, owner.From, owner)
 
-	if err := instance.service.AcceptTransaction(tx); err != nil {
+	if err := i.service.AcceptTransaction(tx); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestServiceCreateTxProof(t *testing.T) {
-	instance := newInstance(t)
+func TestCreateProof(t *testing.T) {
+	i := newInstance(t)
 	tx := testTx(t, zero, one, two, three, owner.From, owner)
 
-	if err := instance.service.AcceptTransaction(tx); err != nil {
+	if err := i.service.AcceptTransaction(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := instance.service.BuildTxBlock()
+	_, err := i.service.BuildBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = instance.service.SaveCurrentTxBlock()
+	block1 := i.service.CurrentBlock()
+
+	err = i.service.SendBlockHash(context.Background(), block1.Hash())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	blockNum, err := instance.service.LastTxBlockNumber()
+	err = i.service.SaveBlockToDB(one.Uint64(), block1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = instance.service.SendCurrentTxBlock(context.Background())
+	blockNum, err := i.service.LastBlockNumber()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	proof, err := instance.service.CreateTxProof(one, blockNum.Uint64())
+	proof, err := i.service.CreateProof(one, blockNum.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,46 +55,75 @@ func TestServiceCreateTxProof(t *testing.T) {
 	if len(proof) == 0 {
 		t.Fatal("empty proof")
 	}
-}
 
-func TestInitCurrentTxBlock(t *testing.T) {
-	instance := newInstance(t)
-	tx := testTx(t, zero, one, two, three, owner.From, owner)
-
-	if err := instance.service.AcceptTransaction(tx); err != nil {
-		t.Fatal(err)
-	}
-
-	_, err := instance.service.BuildTxBlock()
+	exist, err := i.service.TxInBlock(
+		one, tx.Hash(), blockNum.Uint64(), proof)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hash := instance.service.CurrentTxBlockHash()
+	if !exist {
+		t.Fatal("the transaction in the block")
+	}
 
-	instance.service.InitNewTxBlock()
+	proof2, err := i.service.CreateProof(two, blockNum.Uint64())
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	hash2 := instance.service.CurrentTxBlockHash()
+	if len(proof2) == 0 {
+		t.Fatal("empty proof")
+	}
 
-	if bytes.Equal(hash.Bytes(), hash2.Bytes()) {
+	exist, err = i.service.TxInBlock(
+		two, tx.Hash(), blockNum.Uint64(), proof2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exist {
+		t.Fatal("the transaction not in the block")
+	}
+}
+
+func TestInitBlock(t *testing.T) {
+	i := newInstance(t)
+	tx := testTx(t, zero, one, two, three, owner.From, owner)
+
+	if err := i.service.AcceptTransaction(tx); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := i.service.BuildBlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hash := i.service.CurrentBlock().Hash()
+
+	i.service.InitBlock()
+
+	hash2 := i.service.CurrentBlock().Hash()
+
+	if bytes.Equal(hash.Bytes(), hash2.Bytes()) || (hash2 != common.Hash{}) {
 		t.Fatal("the current block was not initialized")
 	}
 }
 
-func TestRawTxBlock(t *testing.T) {
-	instance := newInstance(t)
+func TestRawBlockFromDB(t *testing.T) {
+	i := newInstance(t)
 	tx := testTx(t, zero, one, two, three, owner.From, owner)
 
-	if err := instance.service.AcceptTransaction(tx); err != nil {
+	if err := i.service.AcceptTransaction(tx); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err := instance.service.BuildTxBlock()
+	_, err := i.service.BuildBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	rawBlock, err := instance.service.RawTxBlock(one.Uint64())
+	rawBlock, err := i.service.RawBlockFromDB(one.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,12 +132,14 @@ func TestRawTxBlock(t *testing.T) {
 		t.Fatal("block must not be in the database")
 	}
 
-	err = instance.service.SaveCurrentTxBlock()
+	block := i.service.CurrentBlock()
+
+	err = i.service.SaveBlockToDB(one.Uint64(), block)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	rawBlock, err = instance.service.RawTxBlock(zero.Uint64())
+	rawBlock, err = i.service.RawBlockFromDB(one.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}

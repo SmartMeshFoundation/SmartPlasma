@@ -75,7 +75,7 @@ func validateTx(t *testing.T, tx *transaction.Transaction,
 func TestBlockAddTx(t *testing.T) {
 	number := 4
 	txs := generateTXs(t, number, 0)
-	bl := NewTxBlock()
+	bl := NewTxBlock().(*txBlock)
 
 	for _, tx := range txs {
 		if err := bl.AddTx(tx); err != nil {
@@ -90,7 +90,7 @@ func TestBlockAddTx(t *testing.T) {
 
 func TestBlockBuild(t *testing.T) {
 	txs := generateTXs(t, numberTx, testPrevBlock)
-	bl := NewTxBlock()
+	bl := NewTxBlock().(*txBlock)
 
 	for _, tx := range txs {
 		if err := bl.AddTx(tx); err != nil {
@@ -112,7 +112,7 @@ func TestBlockBuild(t *testing.T) {
 
 func TestBlockEncodeDecode(t *testing.T) {
 	txs := generateTXs(t, numberTx, testPrevBlock)
-	bl := NewTxBlock()
+	bl := NewTxBlock().(*txBlock)
 
 	for _, tx := range txs {
 		if err := bl.AddTx(tx); err != nil {

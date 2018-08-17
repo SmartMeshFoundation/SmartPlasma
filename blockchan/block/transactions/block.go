@@ -16,12 +16,12 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
+// TxBlock defines the methods for standard Transactions block.
 type TxBlock interface {
 	block.Block
 	AddTx(tx *transaction.Transaction) error
 }
 
-// txBlock object.
 type txBlock struct {
 	mtx  sync.Mutex
 	uIDs []string
@@ -31,8 +31,8 @@ type txBlock struct {
 	built bool
 }
 
-// NewTxBlock creates new block in memory.
-func NewTxBlock() *txBlock {
+// NewTxBlock creates new Transactions block in memory.
+func NewTxBlock() TxBlock {
 	return &txBlock{
 		mtx: sync.Mutex{},
 		txs: make(map[string]*transaction.Transaction),

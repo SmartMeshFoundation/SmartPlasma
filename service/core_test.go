@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pborman/uuid"
 
@@ -27,15 +26,12 @@ var (
 	one   = big.NewInt(1)
 	two   = big.NewInt(2)
 	three = big.NewInt(3)
-	four  = big.NewInt(4)
-	five  = big.NewInt(5)
 	zero  = big.NewInt(0)
 )
 
 type instance struct {
 	service       *Service
 	rootChainAddr common.Address
-	owner         bind.TransactOpts
 }
 
 func newInstance(t *testing.T) *instance {
@@ -69,10 +65,7 @@ func newInstance(t *testing.T) *instance {
 		t.Fatal(err)
 	}
 
-	service, err := NewService(session, server, blockDB, chptDB)
-	if err != nil {
-		t.Fatal(err)
-	}
+	service := NewService(session, server, blockDB, chptDB)
 
 	return &instance{
 		service:       service,

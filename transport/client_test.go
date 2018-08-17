@@ -11,11 +11,11 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
 )
 
-type testHttpServer struct {
+type testHTTPServer struct {
 	server *httptest.Server
 }
 
-func testServer() *testHttpServer {
+func testServer() *testHTTPServer {
 	rpcServer := rpc.NewServer()
 
 	rpcServer.RegisterName("SmartPlasma", &SmartPlasma{
@@ -24,12 +24,12 @@ func testServer() *testHttpServer {
 
 	httpServer := httptest.NewServer(rpcServer)
 
-	return &testHttpServer{
+	return &testHTTPServer{
 		server: httpServer,
 	}
 }
 
-func testClient(t *testing.T, srv *testHttpServer) *Client {
+func testClient(t *testing.T, srv *testHTTPServer) *Client {
 	cli := NewClient(100)
 	err := cli.ConnectString(srv.server.URL[7:])
 	if err != nil {
@@ -51,6 +51,10 @@ func TestNewClient(t *testing.T) {
 
 	tx, err := transaction.NewTransaction(big.NewInt(0), big.NewInt(2),
 		big.NewInt(3), big.NewInt(4), newOwner.From)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	buf := bytes.NewBuffer([]byte{})
 
 	err = tx.EncodeRLP(buf)

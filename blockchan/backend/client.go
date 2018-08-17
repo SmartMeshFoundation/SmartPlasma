@@ -20,7 +20,7 @@ const (
 // Backend interface.
 type Backend interface {
 	Connect() bind.ContractBackend
-	Mine(tx *types.Transaction, ctx context.Context) (*types.Receipt, error)
+	Mine(ctx context.Context, tx *types.Transaction) (*types.Receipt, error)
 	GoodTransaction(tx *types.Transaction) bool
 }
 
@@ -54,8 +54,8 @@ func (back *backend) Connect() bind.ContractBackend {
 }
 
 // Mine to wait mining.
-func (back *backend) Mine(tx *types.Transaction,
-	ctx context.Context) (*types.Receipt, error) {
+func (back *backend) Mine(ctx context.Context,
+	tx *types.Transaction) (*types.Receipt, error) {
 	switch conn := back.connect.(type) {
 	case *ethclient.Client:
 		return bind.WaitMined(ctx, conn, tx)
@@ -81,7 +81,7 @@ func (back *backend) AdjustTime(adjustment time.Duration) error {
 
 // GoodTransaction returns true if transaction status = 1.
 func (back *backend) GoodTransaction(tx *types.Transaction) bool {
-	tr, err := back.Mine(tx, context.Background())
+	tr, err := back.Mine(context.Background(), tx)
 	if err != nil {
 		return false
 	}

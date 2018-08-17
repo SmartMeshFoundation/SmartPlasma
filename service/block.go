@@ -6,28 +6,27 @@ import (
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
+	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
+// AcceptTransaction adds a transaction to current transactions block.
 func (s *Service) AcceptTransaction(tx *transaction.Transaction) error {
 	return s.currentBlock.AddTx(tx)
 }
 
-func (s *Service) CreateTxProof(uid *big.Int, block uint64) ([]byte, error) {
-	raw, err := s.RawTxBlock(block)
+// CreateProof creates merkle proof for particular uid.
+// Argument `block` is block number.
+func (s *Service) CreateProof(uid *big.Int, block uint64) ([]byte, error) {
+	raw, err := s.RawBlockFromDB(block)
 	if err != nil {
 		return nil, err
 	}
 
 	blk := transactions.NewTxBlock()
-	err = blk.Unmarshal(raw)
-	if err != nil {
-		return nil, err
-	}
-	_, err = blk.Build()
+	err = buildBlockFromBytes(blk, raw)
 	if err != nil {
 		return nil, err
 	}
@@ -35,19 +34,35 @@ func (s *Service) CreateTxProof(uid *big.Int, block uint64) ([]byte, error) {
 	return blk.CreateProof(uid), err
 }
 
-func (s *Service) InitNewTxBlock() {
+// TxInBlock returns true if uid was spent in this block.
+func (s *Service) TxInBlock(uid *big.Int, hash common.Hash,
+	block uint64, proof []byte) (bool, error) {
+	root, err := s.session.ChildChain(new(big.Int).SetUint64(block))
+	if err != nil {
+		return false, err
+	}
+
+	return merkle.CheckMembership(uid, hash, root, proof), err
+}
+
+// InitBlock initializes a new block.
+func (s *Service) InitBlock() {
 	s.currentBlock = transactions.NewTxBlock()
 }
 
-func (s *Service) BuildTxBlock() (common.Hash, error) {
+// BuildBlock build current Plasma block.
+func (s *Service) BuildBlock() (common.Hash, error) {
 	return s.currentBlock.Build()
 }
 
-func (s *Service) RawTxBlock(number uint64) ([]byte, error) {
+// RawBlockFromDB returns raw Plasma block from database.
+func (s *Service) RawBlockFromDB(number uint64) ([]byte, error) {
 	return s.blockBase.Get(strconv.AppendUint(nil, number, 10))
 }
 
-func (s *Service) SaveTxBlock(number uint64, blk transactions.TxBlock) error {
+// SaveBlockToDB saves Plasma Block to database.
+func (s *Service) SaveBlockToDB(number uint64,
+	blk transactions.TxBlock) error {
 	raw, err := blk.Marshal()
 	if err != nil {
 		return err
@@ -55,68 +70,21 @@ func (s *Service) SaveTxBlock(number uint64, blk transactions.TxBlock) error {
 	return s.blockBase.Set(strconv.AppendUint(nil, number, 10), raw)
 }
 
-func (s *Service) SaveCurrentTxBlock() error {
-	hash := s.currentBlock.Hash()
-	if (hash == common.Hash{}) {
-		return errors.New(" hash of block is empty")
-	}
-
-	return s.SaveTxBlock(s.getBlockNumber(), s.currentBlock)
-}
-
-func (s *Service) SendCurrentTxBlock(ctx context.Context) error {
-	hash := s.currentBlock.Hash()
-	if (hash == common.Hash{}) {
-		return errors.New(" hash of block is empty")
-	}
-
-	err := s.SendTxBlock(ctx, hash)
-	if err != nil {
-		return err
-	}
-
-	s.setBlockNumber(s.getBlockNumber() + 1)
-	return nil
-}
-
-func (s *Service) SendTxBlock(ctx context.Context, hash common.Hash) error {
+// SendBlockHash sends a Plasma block hash to the blockchain.
+func (s *Service) SendBlockHash(ctx context.Context, hash common.Hash) error {
 	tx, err := s.session.NewBlock(hash)
 	if err != nil {
 		return err
 	}
-	err = s.mineTx(tx, ctx)
-	if err != nil {
-		return err
-	}
-	return nil
+	return s.mineTx(ctx, tx)
 }
 
-func (s *Service) LastTxBlockNumber() (*big.Int, error) {
+// LastBlockNumber gets last block number from blockchain.
+func (s *Service) LastBlockNumber() (*big.Int, error) {
 	return s.session.BlockNumber()
 }
 
-func (s *Service) CurrentTxBlockHash() common.Hash {
-	return s.currentBlock.Hash()
-}
-
-func (s *Service) SyncCurrentTxBlockNumber() error {
-	blk, err := s.session.BlockNumber()
-	if err != nil {
-		return err
-	}
-
-	s.setBlockNumber(blk.Uint64() + 1)
-	return nil
-}
-
-func (s *Service) getBlockNumber() uint64 {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	return s.blockNumber
-}
-
-func (s *Service) setBlockNumber(number uint64) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.blockNumber = number
+// CurrentBlock returns current Plasma block.
+func (s *Service) CurrentBlock() transactions.TxBlock {
+	return s.currentBlock
 }

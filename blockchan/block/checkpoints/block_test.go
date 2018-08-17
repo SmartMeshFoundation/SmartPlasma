@@ -47,7 +47,7 @@ func validateCheckpoint(t *testing.T, uid, number *big.Int,
 
 func TestAddCheckpoint(t *testing.T) {
 	chs := generateCheckpoints(numberCheckpoints)
-	bl := NewBlock()
+	bl := NewBlock().(*checkpointBlock)
 
 	for _, ch := range chs {
 		if err := bl.AddCheckpoint(ch.uid, ch.nonce); err != nil {
@@ -63,7 +63,7 @@ func TestAddCheckpoint(t *testing.T) {
 
 func TestBlockBuild(t *testing.T) {
 	chs := generateCheckpoints(numberCheckpoints)
-	bl := NewBlock()
+	bl := NewBlock().(*checkpointBlock)
 
 	for _, ch := range chs {
 		if err := bl.AddCheckpoint(ch.uid, ch.nonce); err != nil {
@@ -85,7 +85,7 @@ func TestBlockBuild(t *testing.T) {
 
 func TestBlockEncodeDecode(t *testing.T) {
 	chs := generateCheckpoints(numberCheckpoints)
-	bl := NewBlock()
+	bl := NewBlock().(*checkpointBlock)
 
 	for _, ch := range chs {
 		if err := bl.AddCheckpoint(ch.uid, ch.nonce); err != nil {

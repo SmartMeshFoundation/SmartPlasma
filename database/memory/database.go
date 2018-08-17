@@ -31,6 +31,7 @@ func (d *DB) Close() error {
 	return nil
 }
 
+// Set sets value to key.
 func (d *DB) Set(key, val []byte) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()

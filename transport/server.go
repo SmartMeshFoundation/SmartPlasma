@@ -11,11 +11,13 @@ const (
 	tcpProtocol = "tcp"
 )
 
+// Server is RPC server to Plasma Cash service.
 type Server struct {
 	port   uint16
 	server *http.Server
 }
 
+// NewServer creates new RPC server to Plasma Cash service.
 func NewServer(timeout int, port uint16) *Server {
 	rpcServer := rpc.NewServer()
 
@@ -33,6 +35,7 @@ func NewServer(timeout int, port uint16) *Server {
 	}
 }
 
+// ListenAndServe starts RPC server to Plasma Cash service.
 func (srv *Server) ListenAndServe() error {
 	l, err := net.Listen(tcpProtocol, ":"+strconv.Itoa(int(srv.port)))
 	if err != nil {
@@ -42,6 +45,7 @@ func (srv *Server) ListenAndServe() error {
 	return srv.server.Serve(l)
 }
 
+// Close stops RPC server to Plasma Cash service.
 func (srv *Server) Close() error {
 	return srv.server.Close()
 }

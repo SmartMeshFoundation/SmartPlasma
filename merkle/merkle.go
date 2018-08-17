@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	// Default value to depth.
+	// Depth257 value to depth.
 	Depth257 = big.NewInt(defaultDepth)
 
 	one = big.NewInt(1)

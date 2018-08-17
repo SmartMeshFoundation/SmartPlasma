@@ -37,7 +37,7 @@ func Deploy(account *bind.TransactOpts,
 		return common.Address{}, nil, err
 	}
 
-	_, err = server.Mine(tx, context.Background())
+	_, err = server.Mine(context.Background(), tx)
 	if err != nil {
 		return common.Address{}, nil, err
 	}

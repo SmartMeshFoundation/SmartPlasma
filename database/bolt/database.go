@@ -11,6 +11,7 @@ const (
 	fileMode = 0600
 )
 
+// Default names for buckets.
 var (
 	BlocksBucket      = "blocks"
 	CheckpointsBucket = "checkpoints"
@@ -60,6 +61,7 @@ func (d *DB) Close() error {
 	return d.database.Close()
 }
 
+// Set sets value to key.
 func (d *DB) Set(key, val []byte) error {
 	d.mtx.Lock()
 	defer d.mtx.Unlock()

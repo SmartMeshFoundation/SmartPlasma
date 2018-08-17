@@ -13,12 +13,12 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
+// CheckpointBlock defines the methods for standard Checkpoints block.
 type CheckpointBlock interface {
 	block.Block
 	AddCheckpoint(uid, number *big.Int) error
 }
 
-// checkpointBlock object.
 type checkpointBlock struct {
 	mtx     sync.Mutex
 	uIDs    []string
@@ -28,13 +28,15 @@ type checkpointBlock struct {
 	built bool
 }
 
-func NewBlock() *checkpointBlock {
+// NewBlock creates new Checkpoints block in memory.
+func NewBlock() CheckpointBlock {
 	return &checkpointBlock{
 		mtx:     sync.Mutex{},
 		numbers: make(map[string]common.Hash),
 	}
 }
 
+// Hash returns block hash.
 func (bl *checkpointBlock) Hash() common.Hash {
 	if !bl.built {
 		return common.Hash{}
@@ -42,6 +44,7 @@ func (bl *checkpointBlock) Hash() common.Hash {
 	return bl.tree.Root()
 }
 
+// AddTx adds a checkpoints to the block.
 func (bl *checkpointBlock) AddCheckpoint(uid, number *big.Int) error {
 	bl.mtx.Lock()
 	defer bl.mtx.Unlock()
@@ -57,10 +60,12 @@ func (bl *checkpointBlock) AddCheckpoint(uid, number *big.Int) error {
 	return nil
 }
 
+// NumberOfCheckpoints returns number of checkpoints in the block.
 func (bl *checkpointBlock) NumberOfCheckpoints() int64 {
 	return int64(len(bl.numbers))
 }
 
+// Build finalizes the block.
 func (bl *checkpointBlock) Build() (common.Hash, error) {
 	if bl.built {
 		return common.Hash{}, errors.New("block is already built")
@@ -85,6 +90,7 @@ func (bl *checkpointBlock) Build() (common.Hash, error) {
 	return bl.tree.Root(), nil
 }
 
+// Marshal encodes block object to raw json data.
 func (bl *checkpointBlock) Marshal() ([]byte, error) {
 	raw, err := json.Marshal(bl.numbers)
 	if err != nil {
@@ -95,6 +101,7 @@ func (bl *checkpointBlock) Marshal() ([]byte, error) {
 	return raw, nil
 }
 
+// Unmarshal decodes raw json data to block object.
 func (bl *checkpointBlock) Unmarshal(raw []byte) error {
 	var checkpoints map[string]common.Hash
 
@@ -116,6 +123,7 @@ func (bl *checkpointBlock) Unmarshal(raw []byte) error {
 	return nil
 }
 
+// CreateProof creates merkle proof for particular uid.
 func (bl *checkpointBlock) CreateProof(uid *big.Int) []byte {
 	if !bl.built {
 		return nil
