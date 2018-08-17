@@ -12,6 +12,15 @@ contract RootChain is Ownable {
     using SafeMath for uint256;
 
     event Deposit(address depositor, uint256 amount, uint256 uid);
+    event NewBlock(bytes32 hash);
+    event NewCheckpoint(bytes32 hash);
+    event StartExit(uint256 uid, uint256 previousBlock,uint256 lastBlock);
+    event FinishExit(uint256 uid);
+    event ChallengeExit(uint256 uid);
+    event ChallengeCheckpoint(uint256 uid, bytes32 checkpoint);
+    event RespondChallengeExit(uint256 uid);
+    event RespondCheckpointChallenge(uint256 uid, bytes32 checkpoint);
+    event RespondWithHistoricalCheckpoint(uint256 uid, bytes32 checkpoint, bytes32 historicalCheckpoint);
 
     uint256 public depositCount;
     uint256 public blockNumber;
@@ -90,12 +99,16 @@ contract RootChain is Ownable {
     function newBlock(bytes32 hash) public onlyOperator {
         blockNumber = blockNumber.add(uint256(1));
         childChain[blockNumber] = hash;
+
+        emit NewBlock(hash);
     }
 
     function newCheckpoint(bytes32 hash) public onlyOperator {
         require(checkpoints[hash] == 0);
 
         checkpoints[hash]= now;
+
+        emit NewCheckpoint(hash);
     }
 
     function startExit(
@@ -151,6 +164,8 @@ contract RootChain is Ownable {
             txBeforeExitTxBlkNum: previousTxBlockNum,
             txBeforeExitTx: previousTx
         });
+
+        emit StartExit(prevDecodedTx.uid, previousTxBlockNum, lastTxBlockNum);
     }
 
     function finishExit(
@@ -205,6 +220,8 @@ contract RootChain is Ownable {
         delete(wallet[bytes32(decodedTx.uid)]);
 
         return bytes32(decodedTx.uid);
+
+        emit FinishExit(decodedTx.uid);
     }
 
     function challengeExit(
@@ -251,6 +268,8 @@ contract RootChain is Ownable {
         }
 
         require(exits[uid].state == 1);
+
+        emit ChallengeExit(uid);
     }
 
     function challengeCheckpoint(
@@ -298,6 +317,8 @@ contract RootChain is Ownable {
                 lastTxBlockNum
             );
         }
+
+        emit ChallengeCheckpoint(uid, checkpointRoot);
     }
 
     // test respond to a challenge #1
@@ -332,6 +353,8 @@ contract RootChain is Ownable {
         if (challengesLength(uid) == 0) {
             exits[uid].state = 2;
         }
+
+        emit RespondChallengeExit(uid);
     }
 
     function respondCheckpointChallenge(
@@ -360,6 +383,8 @@ contract RootChain is Ownable {
         require(txHash.verifyProof(uid, blockRoot, proof));
 
         removeCheckpointChallenge(uid, checkpointRoot, challengeTx);
+
+        emit RespondCheckpointChallenge(uid, checkpointRoot);
     }
 
     function respondWithHistoricalCheckpoint(
@@ -391,6 +416,8 @@ contract RootChain is Ownable {
         require(checkpoints[historicalCheckpointRoot] < checkpoints[checkpointRoot]);
 
         removeCheckpointChallenge(uid, checkpointRoot, challengeTx);
+
+        emit RespondWithHistoricalCheckpoint(uid, checkpointRoot, historicalCheckpointRoot);
     }
 
     function challengeExists(
