@@ -14,11 +14,6 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/database"
 )
 
-// PlasmaCash defines PlasmaCash methods.
-type PlasmaCash interface {
-	// TODO
-}
-
 // Service implements PlasmaCash methods.
 type Service struct {
 	currentBlock transactions.TxBlock
