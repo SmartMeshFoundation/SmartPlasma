@@ -40,6 +40,8 @@ contract RootChain {
 contract Mediator is Ownable {
     RootChain public rootChain;
 
+    bool joined;
+
     mapping(bytes32 => entry) cash;
 
     struct entry {
@@ -47,10 +49,15 @@ contract Mediator is Ownable {
         uint amount;
     }
 
-    constructor() public {}
+    constructor() public {
+        joined = false;
+    }
 
     function joinPlasma(address plasma) public onlyOwner {
+        require(!joined);
+
         rootChain = RootChain(plasma);
+        joined = true;
     }
 
     function checkToken(address addr) view public returns(bool) {

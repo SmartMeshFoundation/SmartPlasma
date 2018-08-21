@@ -228,7 +228,7 @@ contract RootChain is Ownable {
         uint256 uid,
         bytes challengeTx,
         bytes proof,
-        uint challengeBlockNum
+        uint256 challengeBlockNum
     )
         public
     {
