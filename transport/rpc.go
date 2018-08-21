@@ -3,28 +3,17 @@ package transport
 import (
 	"bytes"
 	"math/big"
-	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
-	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
-	"github.com/SmartMeshFoundation/SmartPlasma/database"
+	"github.com/SmartMeshFoundation/SmartPlasma/service"
 )
 
 // SmartPlasma implements PlasmaCash methods to RPC server.
 type SmartPlasma struct {
-	timeout      int
-	currentBlock transactions.TxBlock
-	currentChpt  checkpoints.CheckpointBlock
-	blockBase    database.Database
-	chptBase     database.Database
-	session      *rootchain.RootChainSession
-	backend      backend.Backend
+	timeout int
+	service *service.Service
 }
 
 // AcceptTransactionReq is request for send Plasma transaction to PRC server.
@@ -81,8 +70,7 @@ func (api *SmartPlasma) AcceptTransaction(req *AcceptTransactionReq,
 		resp.Error = err.Error()
 		return nil
 	}
-
-	if err := api.currentBlock.AddTx(tx); err != nil {
+	if err := api.service.AcceptTransaction(tx); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -91,27 +79,20 @@ func (api *SmartPlasma) AcceptTransaction(req *AcceptTransactionReq,
 // CreateProof creates merkle proof for particular uid.
 func (api *SmartPlasma) CreateProof(req *CreateProofReq,
 	resp *CreateProofResp) error {
-	raw, err := api.rawBlockFromDB(req.Block)
+
+	proof, err := api.service.CreateProof(req.UID, req.Block)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
 	}
-
-	blk := transactions.NewTxBlock()
-	err = buildBlockFromBytes(blk, raw)
-	if err != nil {
-		resp.Error = err.Error()
-		return nil
-	}
-
-	resp.Proof = blk.CreateProof(req.UID)
+	resp.Proof = proof
 	return nil
 }
 
 // AddCheckpoint accepts uid with transaction number for current checkpoint.
 func (api *SmartPlasma) AddCheckpoint(req *AddCheckpointReq,
 	resp *AddCheckpointResp) error {
-	if err := api.currentChpt.AddCheckpoint(req.UID, req.Nonce); err != nil {
+	if err := api.service.AcceptUIDState(req.UID, req.Nonce); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -120,37 +101,11 @@ func (api *SmartPlasma) AddCheckpoint(req *AddCheckpointReq,
 // CreateUIDStateProof creates merkle proof for particular uid.
 func (api *SmartPlasma) CreateUIDStateProof(req *CreateUIDStateProofReq,
 	resp *CreateUIDStateProofResp) error {
-	raw, err := api.rawCheckpointFromDB(req.CheckpointHash)
+	proof, err := api.service.CreateUIDStateProof(req.UID, req.CheckpointHash)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
 	}
-
-	blk := checkpoints.NewBlock()
-	err = buildBlockFromBytes(blk, raw)
-	if err != nil {
-		resp.Error = err.Error()
-		return nil
-	}
-
-	resp.Proof = blk.CreateProof(req.UID)
+	resp.Proof = proof
 	return nil
-}
-
-func (api *SmartPlasma) rawBlockFromDB(number uint64) ([]byte, error) {
-	return api.blockBase.Get(strconv.AppendUint(nil, number, 10))
-}
-
-func (api *SmartPlasma) rawCheckpointFromDB(hash common.Hash) ([]byte, error) {
-	return api.chptBase.Get(hash.Bytes())
-}
-
-func buildBlockFromBytes(blk block.Block, raw []byte) error {
-	err := blk.Unmarshal(raw)
-	if err != nil {
-		return err
-	}
-
-	_, err = blk.Build()
-	return err
 }

@@ -8,17 +8,21 @@ import (
 	"net/rpc"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pborman/uuid"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
+	"github.com/SmartMeshFoundation/SmartPlasma/contract/build"
+	"github.com/SmartMeshFoundation/SmartPlasma/contract/mediator"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
+	"github.com/SmartMeshFoundation/SmartPlasma/database"
 	"github.com/SmartMeshFoundation/SmartPlasma/database/bolt"
+	"github.com/SmartMeshFoundation/SmartPlasma/service"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 var (
@@ -35,19 +39,31 @@ type testService struct {
 	server      *httptest.Server
 	owner       *account.PlasmaTransactOpts
 	smartPlasma *SmartPlasma
+	blockBase   database.Database
+	chptBase    database.Database
 }
 
-func testServer() *testService {
+func testServer(t *testing.T) *testService {
 	rpcServer := rpc.NewServer()
 	testAccounts := account.GenAccounts(1)
 	owner := testAccounts[0]
 
 	server := backend.NewSimulatedBackend(account.Addresses(testAccounts))
 
-	rootChainAddr, _, err := rootchain.Deploy(
-		owner.TransactOpts, server)
+	mediatorAddr, _, err := mediator.Deploy(owner.TransactOpts, server)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
+	}
+
+	mSession, err := mediator.NewMediatorSession(*owner.TransactOpts,
+		mediatorAddr, server)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rootChainAddr, err := mSession.RootChain()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	session, err := rootchain.NewRootChainSession(
@@ -73,14 +89,31 @@ func testServer() *testService {
 		panic(err)
 	}
 
+	parsed, err := abi.JSON(strings.NewReader(rootchain.RootChainABI))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rchc, err := build.NewContract(rootChainAddr, parsed, server.Connect())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mParsed, err := abi.JSON(strings.NewReader(mediator.MediatorABI))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	mc, err := build.NewContract(mediatorAddr, mParsed, server.Connect())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := service.NewService(session, server, blockDB, chptDB, rchc, mc)
+
 	smartPlasma := &SmartPlasma{
-		currentChpt:  checkpoints.NewBlock(),
-		currentBlock: transactions.NewTxBlock(),
-		blockBase:    blockDB,
-		chptBase:     chptDB,
-		session:      session,
-		backend:      server,
-		timeout:      100,
+		timeout: 100,
+		service: s,
 	}
 
 	rpcServer.RegisterName("SmartPlasma", smartPlasma)
@@ -96,10 +129,9 @@ func testServer() *testService {
 }
 
 func (s *testService) Close() {
-	defer os.RemoveAll(s.dir)
-	defer s.smartPlasma.blockBase.Close()
-	defer s.smartPlasma.chptBase.Close()
-	defer s.server.Close()
+	os.RemoveAll(s.dir)
+	s.smartPlasma.service.Close()
+	s.server.Close()
 }
 
 func testClient(t *testing.T, srv *testService) *Client {
@@ -112,7 +144,7 @@ func testClient(t *testing.T, srv *testService) *Client {
 }
 
 func TestAcceptTransaction(t *testing.T) {
-	s := testServer()
+	s := testServer(t)
 	defer s.Close()
 
 	cli := testClient(t, s)
@@ -141,7 +173,7 @@ func TestAcceptTransaction(t *testing.T) {
 }
 
 func TestCreateProof(t *testing.T) {
-	s := testServer()
+	s := testServer(t)
 	defer s.Close()
 
 	cli := testClient(t, s)
@@ -154,20 +186,17 @@ func TestCreateProof(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = s.smartPlasma.currentBlock.AddTx(tx)
+	err = s.smartPlasma.service.AcceptTransaction(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = s.smartPlasma.currentBlock.Build()
+	_, err = s.smartPlasma.service.BuildBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	raw, err := s.smartPlasma.currentBlock.Marshal()
-	if err != nil {
-		t.Fatal(err)
-	}
+	curBlock := s.smartPlasma.service.CurrentBlock()
 
 	resp, err := cli.CreateProof(one, one.Uint64())
 	if err != nil {
@@ -178,7 +207,7 @@ func TestCreateProof(t *testing.T) {
 		t.Fatal("error")
 	}
 
-	err = s.smartPlasma.blockBase.Set([]byte(one.String()), raw)
+	err = s.smartPlasma.service.SaveBlockToDB(one.Uint64(), curBlock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +223,7 @@ func TestCreateProof(t *testing.T) {
 }
 
 func TestAddCheckpoint(t *testing.T) {
-	s := testServer()
+	s := testServer(t)
 	defer s.Close()
 
 	cli := testClient(t, s)
@@ -211,23 +240,25 @@ func TestAddCheckpoint(t *testing.T) {
 }
 
 func TestCreateUIDStateProof(t *testing.T) {
-	s := testServer()
+	s := testServer(t)
 	defer s.Close()
 
 	cli := testClient(t, s)
 	defer cli.Close()
 
-	err := s.smartPlasma.currentChpt.AddCheckpoint(one, two)
+	err := s.smartPlasma.service.AcceptUIDState(one, two)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	hash := s.smartPlasma.currentChpt.Hash()
-
-	raw, err := s.smartPlasma.currentChpt.Marshal()
+	_, err = s.smartPlasma.service.BuildCheckpoint()
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	curChpt := s.smartPlasma.service.CurrentCheckpoint()
+
+	hash := s.smartPlasma.service.CurrentCheckpoint().Hash()
 
 	resp, err := cli.CreateUIDStateProof(one, hash)
 	if err != nil {
@@ -238,7 +269,7 @@ func TestCreateUIDStateProof(t *testing.T) {
 		t.Fatal("error")
 	}
 
-	err = s.smartPlasma.chptBase.Set(hash.Bytes(), raw)
+	err = s.smartPlasma.service.SaveCheckpointToDB(curChpt)
 	if err != nil {
 		t.Fatal(err)
 	}

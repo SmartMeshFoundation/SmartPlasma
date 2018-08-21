@@ -6,11 +6,7 @@ import (
 	"net/rpc"
 	"strconv"
 
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
-	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
-	"github.com/SmartMeshFoundation/SmartPlasma/database"
+	"github.com/SmartMeshFoundation/SmartPlasma/service"
 )
 
 const (
@@ -24,19 +20,12 @@ type Server struct {
 }
 
 // NewServer creates new RPC server to Plasma Cash service.
-func NewServer(timeout int, port uint16,
-	session *rootchain.RootChainSession, backend backend.Backend,
-	blockBase, chptBase database.Database) *Server {
+func NewServer(timeout int, port uint16, service *service.Service) *Server {
 	rpcServer := rpc.NewServer()
 
 	rpcServer.RegisterName("SmartPlasma", &SmartPlasma{
-		timeout:      timeout,
-		currentChpt:  checkpoints.NewBlock(),
-		currentBlock: transactions.NewTxBlock(),
-		blockBase:    blockBase,
-		chptBase:     chptBase,
-		session:      session,
-		backend:      backend,
+		timeout: timeout,
+		service: service,
 	})
 
 	httpServer := &http.Server{
