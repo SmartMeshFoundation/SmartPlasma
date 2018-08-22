@@ -14,6 +14,15 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+// Transactor defines the methods needed to allow operating with contract
+// on a write only basis.
+type Transactor interface {
+	PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error)
+	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
+	SuggestGasPrice(ctx context.Context) (*big.Int, error)
+	EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error)
+}
+
 // Errors.
 var (
 	ErrNoCode = errors.New("no contract code at given address")
@@ -24,22 +33,20 @@ var (
 type Contract struct {
 	abi        abi.ABI
 	address    common.Address
-	contract   *bind.BoundContract
-	transactor bind.ContractTransactor
+	transactor Transactor
 }
 
 // NewContract creates a low level contract interface through which calls
 // and transactions may be made through.
 func NewContract(address common.Address, abi abi.ABI,
-	backend bind.ContractBackend) (*Contract, error) {
+	backend Transactor) (*Contract, error) {
 	if (address == common.Address{}) {
 		return nil, errors.New("address is null")
 	}
 	return &Contract{
 		abi:        abi,
 		address:    address,
-		contract:   boundContract(address, abi, backend),
-		transactor: backend,
+		transactor: backend, // TODO: change to plasma backend
 	}, nil
 }
 
@@ -116,11 +123,6 @@ func (c *Contract) Transaction(opts *bind.TransactOpts, method string,
 		return nil, errors.New("no signer to authorize the transaction with")
 	}
 	return opts.Signer(types.HomesteadSigner{}, opts.From, rawTx)
-}
-
-func boundContract(address common.Address, abi abi.ABI,
-	backend bind.ContractBackend) *bind.BoundContract {
-	return bind.NewBoundContract(address, abi, backend, backend, backend)
 }
 
 func ensureContext(ctx context.Context) context.Context {

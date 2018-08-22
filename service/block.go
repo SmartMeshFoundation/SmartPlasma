@@ -34,8 +34,8 @@ func (s *Service) CreateProof(uid *big.Int, block uint64) ([]byte, error) {
 	return blk.CreateProof(uid), err
 }
 
-// TxInBlock returns true if uid was spent in this block.
-func (s *Service) TxInBlock(uid *big.Int, hash common.Hash,
+// VerifyTxProof returns true if uid was spent in this block.
+func (s *Service) VerifyTxProof(uid *big.Int, hash common.Hash,
 	block uint64, proof []byte) (bool, error) {
 	root, err := s.session.ChildChain(new(big.Int).SetUint64(block))
 	if err != nil {

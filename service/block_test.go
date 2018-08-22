@@ -56,7 +56,7 @@ func TestCreateProof(t *testing.T) {
 		t.Fatal("empty proof")
 	}
 
-	exist, err := i.service.TxInBlock(
+	exist, err := i.service.VerifyTxProof(
 		one, tx.Hash(), blockNum.Uint64(), proof)
 	if err != nil {
 		t.Fatal(err)
@@ -75,7 +75,7 @@ func TestCreateProof(t *testing.T) {
 		t.Fatal("empty proof")
 	}
 
-	exist, err = i.service.TxInBlock(
+	exist, err = i.service.VerifyTxProof(
 		two, tx.Hash(), blockNum.Uint64(), proof2)
 	if err != nil {
 		t.Fatal(err)

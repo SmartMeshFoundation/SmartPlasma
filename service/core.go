@@ -1,13 +1,7 @@
 package service
 
 import (
-	"context"
-
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/pkg/errors"
-
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
-	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/build"
@@ -49,54 +43,4 @@ func NewService(session *rootchain.RootChainSession, backend backend.Backend,
 func (s *Service) Close() {
 	s.blockBase.Close()
 	s.chptBase.Close()
-}
-
-func (s *Service) mineTx(ctx context.Context, tx *types.Transaction) error {
-	tr, err := s.backend.Mine(ctx, tx)
-	if err != nil {
-		return err
-	}
-
-	if tr.Status == types.ReceiptStatusFailed {
-		return errors.New("transaction execution failed")
-	}
-	return nil
-}
-
-// MediatorTransaction decode and sends Ethereum transaction
-// to mediator contract.
-// methods: deposit, withdraw.
-func (s *Service) MediatorTransaction(rawTx []byte) error {
-	tx, err := s.mediatorContractWrapper.UnmarshalTransaction(rawTx)
-	if err != nil {
-		return err
-	}
-	return s.transact(tx)
-}
-
-// RootChainTransaction decode and sends Ethereum transaction
-// to root chain contract.
-// methods: startExit, challengeExit, challengeCheckpoint,
-// respondChallengeExit, respondCheckpointChallenge,
-// respondWithHistoricalCheckpoint.
-func (s *Service) RootChainTransaction(rawTx []byte) error {
-	tx, err := s.rootChainContractWrapper.UnmarshalTransaction(rawTx)
-	if err != nil {
-		return err
-	}
-	return s.transact(tx)
-}
-
-func buildBlockFromBytes(blk block.Block, raw []byte) error {
-	err := blk.Unmarshal(raw)
-	if err != nil {
-		return err
-	}
-
-	_, err = blk.Build()
-	return err
-}
-
-func (s *Service) transact(tx *types.Transaction) error {
-	return s.backend.Connect().SendTransaction(context.Background(), tx)
 }
