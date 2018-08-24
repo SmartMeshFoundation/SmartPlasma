@@ -6,6 +6,10 @@ import "./libraries/MerkleProof.sol";
 import "./libraries/ownership/Ownable.sol";
 import "./libraries/math/SafeMath.sol";
 
+/** @title RootChain contract for SmartPlasma.
+ *
+ *  SmartPlasma is based on Plasma Cash.
+ */
 contract RootChain is Ownable {
     using Merkle for bytes32;
     using Transaction for bytes;
@@ -22,26 +26,79 @@ contract RootChain is Ownable {
     event RespondCheckpointChallenge(uint256 uid, bytes32 checkpoint);
     event RespondWithHistoricalCheckpoint(uint256 uid, bytes32 checkpoint, bytes32 historicalCheckpoint);
 
+    /** @dev Counter of deposits. */
     uint256 public depositCount;
+
+    /** @dev Current block number of ChildChain. */
     uint256 public blockNumber;
+
+    /** @dev The period for challenging. */
     uint256 challengePeriod;
+
+    /** @dev Plasma Cash operator address. */
     address operator;
 
+    /** @dev Dictionary of child chain blocks.
+     *
+     *  key = block number.
+     *  value = block hash.
+     */
     mapping(uint256 => bytes32) public childChain;
+
+    /** @dev Dictionary of incomplete exits from SmartPlasma.
+     *
+     *  key = unique identifier of a deposit (uid).
+     *  value = a exit information.
+     */
     mapping(uint256 => exit) public exits;
+
+    /** @dev Dictionary of deposits.
+     *
+     *  key = unique identifier of a deposit (uid).
+     *  value = the amount of currency corresponding to this uid.
+     */
     mapping(bytes32 => uint256) public wallet;
+
+    /** @dev Dictionary of current disputes.
+     *
+     *  key = unique identifier of a deposit (uid).
+     *  value = a dispute information.
+     */
     mapping(uint256 => dispute) disputes;
-    // key = checkpoint hash - checkpoint merkle root,
-    // value = unix timestamp - checkpoint create time.
+
+    /** @dev Dictionary of checkpoints.
+     *
+     *  key = checkpoint hash - checkpoint merkle root.
+     *  value = unix timestamp - checkpoint create time.
+     */
     mapping(bytes32 => uint256) public checkpoints;
-    // checkpoint disputes
+
+    /** @dev Dictionary of current checkpoint disputes.
+     *
+     *  key = unique identifier of a deposit (uid).
+     *  value = dictionary of disputes.
+     *  key2 (dictionary of disputes) = checkpoint hash.
+     *  value2 (dictionary of disputes) = a dispute information.
+     */
     mapping(uint256 => mapping(bytes32 => dispute)) checkpointDisputes;
 
+    /** @dev Exit information.
+     *
+     *  state - state of exit.
+     *  exitTime - unix timestamp of start exit.
+     *  exitTxBlkNum - block number of last transaction.
+     *  exitTx - decoded last Smart Plasma transaction.
+     *  txBeforeExitTxBlkNum - block number of penultimate transaction.
+     *  txBeforeExitTx - decoded penultimate Smart Plasma transaction.
+     */
     struct exit {
-        // 0 - did not request to exit,
-        // 1 - in challenge proceeding, it blocks a exit,
-        // 2 - in anticipation of exit,
-        // 3 - a exit was made.
+        /** @dev exit states:
+         *
+         *  0 - did not request to exit,
+         *  1 - in challenge proceeding, it blocks a exit,
+         *  2 - in anticipation of exit,
+         *  3 - a exit was made.
+         */
         uint256 state;
         uint256 exitTime;
         uint256 exitTxBlkNum;
@@ -50,18 +107,37 @@ contract RootChain is Ownable {
         bytes txBeforeExitTx;
     }
 
+    /** @dev Challenge information.
+     *
+     *  exists - if is true then challenge is exists.
+     *  challengeTx - it transaction has caused challenge.
+     *  blockNumber - block number of challenge transaction.
+     */
     struct challenge {
         bool exists;
         bytes challengeTx;
         uint256 blockNumber;
     }
 
+    /** @dev Dispute information.
+     *
+     *  len - number of outstanding disputes.
+     *  challenges - dictionary of current challenges.
+     *  key(dictionary of current challenges) - index of challenge.
+     *  value(dictionary of current challenges) - a challenge information.
+     *  indexes - dictionary of challenge indexes.
+     *  key(dictionary of challenge indexes) - decoded challenge transaction.
+     *  value(dictionary of challenge indexes) - index of challenge.
+     */
     struct dispute {
         uint256 len;
         mapping(uint256 => challenge) challenges;
         mapping(bytes => uint256) indexes;
     }
 
+    /** @dev Constructor of RootChain contract.
+     *  @param _operator Address of Plasma Cash operator.
+     */
     constructor (address _operator) public {
         blockNumber = 0;
         challengePeriod = 2 weeks;
@@ -74,6 +150,12 @@ contract RootChain is Ownable {
         _;
     }
 
+    /** @dev Creates deposit. Can only call the owner.
+     *       Usually the owner is the mediator contract.
+     *  @param account Depositor address.
+     *  @param currency Currency address.
+     *  @param amount Currency amount.
+     */
     function deposit(
         address account,
         address currency,
@@ -96,6 +178,8 @@ contract RootChain is Ownable {
         return uid;
     }
 
+    /** @dev .
+     */
     function newBlock(bytes32 hash) public onlyOperator {
         blockNumber = blockNumber.add(uint256(1));
         childChain[blockNumber] = hash;
@@ -103,6 +187,8 @@ contract RootChain is Ownable {
         emit NewBlock(hash);
     }
 
+    /** @dev .
+     */
     function newCheckpoint(bytes32 hash) public onlyOperator {
         require(checkpoints[hash] == 0);
 
@@ -111,6 +197,8 @@ contract RootChain is Ownable {
         emit NewCheckpoint(hash);
     }
 
+    /** @dev .
+     */
     function startExit(
         bytes previousTx,
         bytes previousTxProof,
@@ -168,6 +256,8 @@ contract RootChain is Ownable {
         emit StartExit(prevDecodedTx.uid, previousTxBlockNum, lastTxBlockNum);
     }
 
+    /** @dev .
+     */
     function finishExit(
         address account,
         bytes previousTx,
@@ -224,6 +314,8 @@ contract RootChain is Ownable {
         return bytes32(decodedTx.uid);
     }
 
+    /** @dev .
+     */
     function challengeExit(
         uint256 uid,
         bytes challengeTx,
@@ -272,6 +364,8 @@ contract RootChain is Ownable {
         emit ChallengeExit(uid);
     }
 
+    /** @dev .
+     */
     function challengeCheckpoint(
         uint256 uid,
         bytes32 checkpointRoot,
@@ -322,7 +416,8 @@ contract RootChain is Ownable {
         emit ChallengeCheckpoint(uid, checkpointRoot);
     }
 
-    // test respond to a challenge #1
+    /** @dev .
+     */
     function respondChallengeExit(
         uint256 uid,
         bytes challengeTx,
@@ -358,6 +453,8 @@ contract RootChain is Ownable {
         emit RespondChallengeExit(uid);
     }
 
+    /** @dev .
+     */
     function respondCheckpointChallenge(
         uint256 uid,
         bytes32 checkpointRoot,
@@ -388,6 +485,8 @@ contract RootChain is Ownable {
         emit RespondCheckpointChallenge(uid, checkpointRoot);
     }
 
+    /** @dev .
+     */
     function respondWithHistoricalCheckpoint(
         uint256 uid,
         bytes32 checkpointRoot,
@@ -421,6 +520,8 @@ contract RootChain is Ownable {
         emit RespondWithHistoricalCheckpoint(uid, checkpointRoot, historicalCheckpointRoot);
     }
 
+    /** @dev .
+     */
     function challengeExists(
         uint256 uid,
         bytes challengeTx
@@ -436,6 +537,8 @@ contract RootChain is Ownable {
         return disputes[uid].challenges[index].exists;
     }
 
+    /** @dev .
+     */
     function checkpointIsChallenge(
         uint256 uid,
         bytes32 checkpoint,
@@ -452,6 +555,8 @@ contract RootChain is Ownable {
         return checkpointDisputes[uid][checkpoint].challenges[index].exists;
     }
 
+    /** @dev .
+     */
     function challengesLength(
         uint256 uid
     )
@@ -467,6 +572,8 @@ contract RootChain is Ownable {
         return(origLen.sub(uint256(1)));
     }
 
+    /** @dev .
+     */
     function checkpointChallengesLength(
         uint256 uid,
         bytes32 checkpoint
@@ -483,6 +590,8 @@ contract RootChain is Ownable {
         return(origLen.sub(uint256(1)));
     }
 
+    /** @dev .
+     */
     function getChallenge(
         uint256 uid,
         uint256 index
@@ -496,6 +605,8 @@ contract RootChain is Ownable {
         return(che.challengeTx, che.blockNumber);
     }
 
+    /** @dev .
+     */
     function getCheckpointChallenge(
         uint256 uid,
         bytes32 checkpoint,
@@ -510,6 +621,8 @@ contract RootChain is Ownable {
         return(che.challengeTx, che.blockNumber);
     }
 
+    /** @dev .
+     */
     function addCheckpointChallenge(
         uint256 uid,
         bytes32 checkpoint,
@@ -540,6 +653,8 @@ contract RootChain is Ownable {
         checkpointDisputes[uid][checkpoint].len = currentLen.add(uint256(1));
     }
 
+    /** @dev .
+     */
     function addChallenge(
         uint256 uid,
         bytes challengeTx,
@@ -567,6 +682,8 @@ contract RootChain is Ownable {
         disputes[uid].len = disputes[uid].len.add(uint256(1));
     }
 
+    /** @dev .
+     */
     function removeCheckpointChallenge(
         uint256 uid,
         bytes32 checkpoint,
@@ -599,6 +716,8 @@ contract RootChain is Ownable {
         checkpointDisputes[uid][checkpoint].len = lastIndex;
     }
 
+    /** @dev .
+     */
     function removeChallenge(
         uint256 uid,
         bytes challengeTx

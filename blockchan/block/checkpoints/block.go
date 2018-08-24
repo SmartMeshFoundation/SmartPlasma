@@ -19,7 +19,8 @@ type CheckpointBlock interface {
 	AddCheckpoint(uid, number *big.Int) error
 }
 
-type checkpointBlock struct {
+// ChptBlock is checkpoint block object.
+type ChptBlock struct {
 	mtx     sync.Mutex
 	uIDs    []string
 	numbers map[string]common.Hash
@@ -30,22 +31,22 @@ type checkpointBlock struct {
 
 // NewBlock creates new Checkpoints block in memory.
 func NewBlock() CheckpointBlock {
-	return &checkpointBlock{
+	return &ChptBlock{
 		mtx:     sync.Mutex{},
 		numbers: make(map[string]common.Hash),
 	}
 }
 
 // Hash returns block hash.
-func (bl *checkpointBlock) Hash() common.Hash {
+func (bl *ChptBlock) Hash() common.Hash {
 	if !bl.built {
 		return common.Hash{}
 	}
 	return bl.tree.Root()
 }
 
-// AddTx adds a checkpoints to the block.
-func (bl *checkpointBlock) AddCheckpoint(uid, number *big.Int) error {
+// AddCheckpoint adds a checkpoints to the block.
+func (bl *ChptBlock) AddCheckpoint(uid, number *big.Int) error {
 	bl.mtx.Lock()
 	defer bl.mtx.Unlock()
 
@@ -61,12 +62,12 @@ func (bl *checkpointBlock) AddCheckpoint(uid, number *big.Int) error {
 }
 
 // NumberOfCheckpoints returns number of checkpoints in the block.
-func (bl *checkpointBlock) NumberOfCheckpoints() int64 {
+func (bl *ChptBlock) NumberOfCheckpoints() int64 {
 	return int64(len(bl.numbers))
 }
 
 // Build finalizes the block.
-func (bl *checkpointBlock) Build() (common.Hash, error) {
+func (bl *ChptBlock) Build() (common.Hash, error) {
 	if bl.built {
 		return common.Hash{}, errors.New("block is already built")
 	}
@@ -91,7 +92,7 @@ func (bl *checkpointBlock) Build() (common.Hash, error) {
 }
 
 // Marshal encodes block object to raw json data.
-func (bl *checkpointBlock) Marshal() ([]byte, error) {
+func (bl *ChptBlock) Marshal() ([]byte, error) {
 	raw, err := json.Marshal(bl.numbers)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to encode"+
@@ -102,7 +103,7 @@ func (bl *checkpointBlock) Marshal() ([]byte, error) {
 }
 
 // Unmarshal decodes raw json data to block object.
-func (bl *checkpointBlock) Unmarshal(raw []byte) error {
+func (bl *ChptBlock) Unmarshal(raw []byte) error {
 	var checkpoints map[string]common.Hash
 
 	if err := json.Unmarshal(raw, &checkpoints); err != nil {
@@ -124,7 +125,7 @@ func (bl *checkpointBlock) Unmarshal(raw []byte) error {
 }
 
 // CreateProof creates merkle proof for particular uid.
-func (bl *checkpointBlock) CreateProof(uid *big.Int) []byte {
+func (bl *ChptBlock) CreateProof(uid *big.Int) []byte {
 	if !bl.built {
 		return nil
 	}

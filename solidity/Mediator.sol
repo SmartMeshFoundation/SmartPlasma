@@ -21,7 +21,8 @@ contract RootChain {
         address account,
         address currency,
         uint256 amount
-    ) public returns (bytes32);
+    )
+        public returns (bytes32);
 
     function finishExit(
         address account,
@@ -31,7 +32,8 @@ contract RootChain {
         bytes lastTx,
         bytes lastTxProof,
         uint256 lastTxBlockNum
-    ) public returns (bytes32);
+    )
+        public returns (bytes32);
 }
 
 /**
