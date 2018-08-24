@@ -106,7 +106,7 @@ contract RootChain is Ownable {
     function newCheckpoint(bytes32 hash) public onlyOperator {
         require(checkpoints[hash] == 0);
 
-        checkpoints[hash]= now;
+        checkpoints[hash] = now;
 
         emit NewCheckpoint(hash);
     }
@@ -219,9 +219,9 @@ contract RootChain is Ownable {
 
         delete(wallet[bytes32(decodedTx.uid)]);
 
-        return bytes32(decodedTx.uid);
-
         emit FinishExit(decodedTx.uid);
+
+        return bytes32(decodedTx.uid);
     }
 
     function challengeExit(
@@ -254,9 +254,9 @@ contract RootChain is Ownable {
         }
 
         // test challenge #3
-        if (challengeBlockNum < exits[uid].exitTxBlkNum  &&
-        beforeExitDecodedTx.newOwner == challengeDecodedTx.signer &&
-        challengeDecodedTx.nonce > beforeExitDecodedTx.nonce) {
+        if (challengeBlockNum < exits[uid].exitTxBlkNum &&
+            (beforeExitDecodedTx.newOwner == challengeDecodedTx.signer &&
+            challengeDecodedTx.nonce > beforeExitDecodedTx.nonce)) {
             delete exits[uid];
             return;
         }
@@ -283,15 +283,16 @@ contract RootChain is Ownable {
     )
         public
     {
-        require(checkpoints[checkpointRoot] != 0 &&
-        checkpoints[checkpointRoot].add(challengePeriod) > now);
+        require(
+            checkpoints[checkpointRoot] != 0 &&
+            checkpoints[checkpointRoot].add(challengePeriod) > now
+        );
         require(!checkpointIsChallenge(uid, checkpointRoot, lastTx));
 
         Transaction.Tx memory lastTxDecoded = lastTx.createTx();
 
         bytes32 txHash = lastTxDecoded.hash;
         bytes32 blockRoot = childChain[lastTxBlockNum];
-        bytes32 lastNonceHash = bytes32(lastTxDecoded.nonce);
         bytes32 wrongNonceHash = bytes32(wrongNonce);
 
         require(
