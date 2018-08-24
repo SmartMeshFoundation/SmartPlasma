@@ -48,6 +48,13 @@ const (
 	SaveBlockToDBMethod   = "SmartPlasma.SaveBlockToDB"
 	InitBlockMethod       = "SmartPlasma.InitBlock"
 	VerifyTxProofMethod   = "SmartPlasma.VerifyTxProof"
+
+	BuildCheckpointMethod       = "SmartPlasma.BuildCheckpoint"
+	SendCheckpointHashMethod    = "SmartPlasma.SendCheckpointHash"
+	CurrentCheckpointMethod     = "SmartPlasma.CurrentCheckpoint"
+	SaveCheckpointToDBMethod    = "SmartPlasma.SaveCheckpointToDB"
+	InitCheckpointMethod        = "SmartPlasma.InitCheckpoint"
+	VerifyCheckpointProofMethod = "SmartPlasma.VerifyCheckpointProof"
 )
 
 // Client is RPC client for PlasmaCash.
@@ -62,6 +69,7 @@ type Client struct {
 }
 
 // NewClient creates new PlasmaCash client.
+// The Client must initialize RemoteEthereumClient or DirectEthereumClient.
 func NewClient(timeout uint64, opts *account.PlasmaTransactOpts) *Client {
 	return &Client{
 		timeout: timeout,
@@ -69,11 +77,16 @@ func NewClient(timeout uint64, opts *account.PlasmaTransactOpts) *Client {
 	}
 }
 
+// RemoteEthereumClient initializes work with remote ethereum client.
+// Ethereum transactions are generated locally, signed locally,
+// packaged and sent to the server. If this function is not called,
+// then all transactions are sent directly to the Ethereum.
 func (c *Client) RemoteEthereumClient(root, med *build.Contract) {
 	c.med = med
 	c.root = root
 }
 
+// DirectEthereumClient initializes work with direct ethereum client.
 func (c *Client) DirectEthereumClient(sessionMediator *mediator.MediatorSession,
 	sessionRootChain *rootchain.RootChainSession) {
 	c.sessionRootChain = sessionRootChain
@@ -120,8 +133,8 @@ func (c *Client) AcceptTransaction(rawTx []byte) (resp *AcceptTransactionResp,
 	return resp, err
 }
 
-// CreateProof sends Uid and Block number to PlasmaCash RPC server.
-// Returns merkle Proof for a Uid.
+// CreateProof sends UID and Block number to PlasmaCash RPC server.
+// Returns merkle Proof for a UID.
 func (c *Client) CreateProof(uid *big.Int,
 	block uint64) (resp *CreateProofResp, err error) {
 	req := &CreateProofReq{UID: uid, Block: block}
@@ -133,7 +146,7 @@ func (c *Client) CreateProof(uid *big.Int,
 	return resp, err
 }
 
-// AddCheckpoint sends Uid and current transaction nonce
+// AddCheckpoint sends UID and current transaction nonce
 // for inclusion in a checkpoint.
 func (c *Client) AddCheckpoint(uid,
 	nonce *big.Int) (resp *AddCheckpointResp, err error) {
@@ -149,8 +162,8 @@ func (c *Client) AddCheckpoint(uid,
 	return resp, err
 }
 
-// CreateUIDStateProof sends Uid and checkpoint Hash to PlasmaCash RPC server.
-// Returns merkle Proof for a Uid.
+// CreateUIDStateProof sends UID and checkpoint Hash to PlasmaCash RPC server.
+// Returns merkle Proof for a UID.
 func (c *Client) CreateUIDStateProof(uid *big.Int,
 	checkpointHash common.Hash) (resp *CreateUIDStateProofResp, err error) {
 	req := &CreateUIDStateProofReq{
@@ -165,6 +178,7 @@ func (c *Client) CreateUIDStateProof(uid *big.Int,
 	return resp, err
 }
 
+// Deposit transacts deposit function from Mediator contract.
 func (c *Client) Deposit(currency common.Address,
 	amount *big.Int) (tx *types.Transaction, err error) {
 	if c.sessionMediator != nil {
@@ -201,6 +215,7 @@ func (c *Client) Deposit(currency common.Address,
 	return tx, err
 }
 
+// Withdraw transacts withdraw function from Mediator contract.
 func (c *Client) Withdraw(prevTx, prevTxProof []byte, prevTxBlkNum *big.Int,
 	txRaw, txProof []byte, txBlkNum *big.Int) (*types.Transaction, error) {
 	if c.sessionMediator != nil {
@@ -239,6 +254,7 @@ func (c *Client) Withdraw(prevTx, prevTxProof []byte, prevTxBlkNum *big.Int,
 	return tx, err
 }
 
+// StartExit transacts startExit function from RootChain contract.
 func (c *Client) StartExit(previousTx, previousTxProof []byte,
 	previousTxBlockNum *big.Int, lastTx, lastTxProof []byte,
 	lastTxBlockNum *big.Int) (*types.Transaction, error) {
@@ -279,6 +295,7 @@ func (c *Client) StartExit(previousTx, previousTxProof []byte,
 	return tx, err
 }
 
+// ChallengeExit transacts challengeExit function from RootChain contract.
 func (c *Client) ChallengeExit(uid *big.Int, challengeTx,
 	proof []byte, challengeBlockNum *big.Int) (*types.Transaction, error) {
 	if c.sessionRootChain != nil {
@@ -315,6 +332,8 @@ func (c *Client) ChallengeExit(uid *big.Int, challengeTx,
 	return tx, err
 }
 
+// ChallengeCheckpoint transacts challengeCheckpoint function
+// from RootChain contract.
 func (c *Client) ChallengeCheckpoint(uid *big.Int, checkpointRoot [32]byte,
 	checkpointProof []byte, wrongNonce *big.Int, lastTx,
 	lastTxProof []byte, lastTxBlockNum *big.Int) (*types.Transaction, error) {
@@ -353,6 +372,8 @@ func (c *Client) ChallengeCheckpoint(uid *big.Int, checkpointRoot [32]byte,
 	return tx, err
 }
 
+// RespondChallengeExit transacts respondChallengeExit function
+// from RootChain contract.
 func (c *Client) RespondChallengeExit(uid *big.Int, challengeTx, respondTx,
 	proof []byte, blockNum *big.Int) (*types.Transaction, error) {
 	if c.sessionRootChain != nil {
@@ -390,6 +411,8 @@ func (c *Client) RespondChallengeExit(uid *big.Int, challengeTx, respondTx,
 	return tx, err
 }
 
+// RespondCheckpointChallenge transacts respondCheckpointChallenge function
+// from RootChain contract.
 func (c *Client) RespondCheckpointChallenge(uid *big.Int,
 	checkpointRoot [32]byte, challengeTx []byte, respondTx []byte,
 	proof []byte, blockNum *big.Int) (*types.Transaction, error) {
@@ -428,6 +451,8 @@ func (c *Client) RespondCheckpointChallenge(uid *big.Int,
 	return tx, err
 }
 
+// RespondWithHistoricalCheckpoint transacts respondWithHistoricalCheckpoint
+// function from RootChain contract.
 func (c *Client) RespondWithHistoricalCheckpoint(uid *big.Int,
 	checkpointRoot [32]byte, checkpointProof []byte,
 	historicalCheckpointRoot [32]byte, historicalCheckpointProof []byte,
@@ -469,6 +494,7 @@ func (c *Client) RespondWithHistoricalCheckpoint(uid *big.Int,
 	return tx, err
 }
 
+// BuildBlock builds current transactions block on the server side.
 func (c *Client) BuildBlock() (resp *BuildBlockResp,
 	err error) {
 	req := &BuildBlockReq{}
@@ -479,6 +505,18 @@ func (c *Client) BuildBlock() (resp *BuildBlockResp,
 	return resp, err
 }
 
+// BuildCheckpoint  builds current checkpoint block on the server side.
+func (c *Client) BuildCheckpoint() (resp *BuildCheckpointResp,
+	err error) {
+	req := &BuildCheckpointReq{}
+	err = c.connect.Call(BuildCheckpointMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, err
+}
+
+// SendBlockHash sends new transactions block hash to RootChain contract.
 func (c *Client) SendBlockHash(hash common.Hash) (resp *SendBlockHashResp,
 	err error) {
 	req := &SendBlockHashReq{hash}
@@ -489,6 +527,20 @@ func (c *Client) SendBlockHash(hash common.Hash) (resp *SendBlockHashResp,
 	return resp, err
 }
 
+// SendCheckpointHash sends new checkpoints block hash to RootChain contract.
+func (c *Client) SendCheckpointHash(hash common.Hash) (resp *SendBlockHashResp,
+	err error) {
+
+	req := &SendBlockHashReq{hash}
+	err = c.connect.Call(SendCheckpointHashMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, err
+}
+
+// LastBlockNumber returns last transactions block number
+// from RootChain contract.
 func (c *Client) LastBlockNumber() (number *big.Int, err error) {
 	if c.sessionRootChain != nil {
 		return c.sessionRootChain.BlockNumber()
@@ -508,6 +560,7 @@ func (c *Client) LastBlockNumber() (number *big.Int, err error) {
 	return resp.Number, err
 }
 
+// CurrentBlock returns raw current transactions block.
 func (c *Client) CurrentBlock() (resp *CurrentBlockResp, err error) {
 	req := &CurrentBlockReq{}
 	err = c.connect.Call(CurrentBlockMethod, req, &resp)
@@ -517,6 +570,17 @@ func (c *Client) CurrentBlock() (resp *CurrentBlockResp, err error) {
 	return resp, err
 }
 
+// CurrentCheckpoint returns raw current checkpoints block.
+func (c *Client) CurrentCheckpoint() (resp *CurrentCheckpointResp, err error) {
+	req := &CurrentCheckpointReq{}
+	err = c.connect.Call(CurrentCheckpointMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, err
+}
+
+// SaveBlockToDB saves raw transactions block in database on server side.
 func (c *Client) SaveBlockToDB(number uint64,
 	raw []byte) (resp *SaveBlockToDBResp, err error) {
 	req := &SaveBlockToDBReq{
@@ -530,21 +594,62 @@ func (c *Client) SaveBlockToDB(number uint64,
 	return resp, err
 }
 
+// SaveCheckpointToDB saves raw checkpoints block in database on server side.
+func (c *Client) SaveCheckpointToDB(
+	raw []byte) (resp *SaveCheckpointToDBResp, err error) {
+	req := &SaveCheckpointToDBReq{
+		Block: raw,
+	}
+	err = c.connect.Call(SaveCheckpointToDBMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, err
+}
+
+// InitBlock initializes new current transactions block on server side.
 func (c *Client) InitBlock() (resp *InitBlockResp, err error) {
 	req := &InitBlockReq{}
 	err = c.connect.Call(InitBlockMethod, req, &resp)
 	return resp, err
 }
 
+// InitCheckpoint initializes new current checkpoints block on server side.
+func (c *Client) InitCheckpoint() (resp *InitCheckpointResp, err error) {
+	req := &InitCheckpointReq{}
+	err = c.connect.Call(InitCheckpointMethod, req, &resp)
+	return resp, err
+}
+
+// VerifyTxProof checks whether the transaction is included
+// in the transactions block.
 func (c *Client) VerifyTxProof(uid *big.Int, hash common.Hash,
 	block uint64, proof []byte) (resp *VerifyTxProofResp, err error) {
 	req := &VerifyTxProofReq{
-		Uid:   uid,
+		UID:   uid,
 		Hash:  hash,
 		Block: block,
 		Proof: proof,
 	}
 	err = c.connect.Call(VerifyTxProofMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return resp, err
+}
+
+// VerifyCheckpointProof checks whether the UID is included
+// in the checkpoints block.
+func (c *Client) VerifyCheckpointProof(uid *big.Int, number *big.Int,
+	checkpoint common.Hash, proof []byte) (resp *VerifyCheckpointProofResp,
+	err error) {
+	req := &VerifyCheckpointProofReq{
+		UID:        uid,
+		Number:     number,
+		Checkpoint: checkpoint,
+		Proof:      proof,
+	}
+	err = c.connect.Call(VerifyCheckpointProofMethod, req, &resp)
 	if err != nil {
 		return nil, err
 	}

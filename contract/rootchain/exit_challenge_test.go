@@ -152,7 +152,7 @@ func TestEarlyChallengeDoubleSpending(t *testing.T) {
 
 	newPlasmaTestTx(t, i, zero, uid, one, zero, user2.From, user1)
 	tx2Good := newPlasmaTestTx(t, i, one, uid, one, one, owner.From, user2)
-	newPlasmaTestTx(t, i, two, uid, one, one, user1.From, user2)
+	newPlasmaTestTx(t, i, one, uid, one, one, user1.From, user2)
 	tx4 := newPlasmaTestTx(t, i, three, uid, one, two, owner.From, user1)
 	tx5 := newPlasmaTestTx(t, i, four, uid, one, three, user2.From, owner)
 
