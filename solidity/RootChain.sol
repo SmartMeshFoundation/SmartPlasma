@@ -150,8 +150,7 @@ contract RootChain is Ownable {
         _;
     }
 
-    /** @dev Creates deposit. Can only call the owner.
-     *       Usually the owner is the mediator contract.
+    /** @dev Creates deposit. Can only call the owner. Usually the owner is the mediator contract.
      *  @param account Depositor address.
      *  @param currency Currency address.
      *  @param amount Currency amount.
@@ -178,7 +177,8 @@ contract RootChain is Ownable {
         return uid;
     }
 
-    /** @dev .
+    /** @dev Creates new Smart Plasma block. Can only call the operator.
+     *  @param hash Merkle root for Smart Plasma block.
      */
     function newBlock(bytes32 hash) public onlyOperator {
         blockNumber = blockNumber.add(uint256(1));
@@ -187,7 +187,8 @@ contract RootChain is Ownable {
         emit NewBlock(hash);
     }
 
-    /** @dev .
+    /** @dev Creates new Checkpoint. Can only call the operator.
+     *  @param hash Merkle root for Checkpoint block.
      */
     function newCheckpoint(bytes32 hash) public onlyOperator {
         require(checkpoints[hash] == 0);
@@ -197,7 +198,13 @@ contract RootChain is Ownable {
         emit NewCheckpoint(hash);
     }
 
-    /** @dev .
+    /** @dev Starts the procedure for withdrawal of the deposit from the system.
+     *  @param previousTx Penultimate deposit transaction.
+     *  @param previousTxProof Proof of inclusion of a penultimate transaction in a Smart Plasma block.
+     *  @param previousTxBlockNum The number of the block in which the penultimate transaction is included.
+     *  @param lastTx Last deposit transaction.
+     *  @param lastTxProof Proof of inclusion of a last transaction in a Smart Plasma block.
+     *  @param lastTxBlockNum The number of the block in which the last transaction is included.
      */
     function startExit(
         bytes previousTx,
@@ -240,7 +247,7 @@ contract RootChain is Ownable {
             )
         );
 
-        // Record the exit tx.
+        /// Record the exit tx.
         require(exits[decodedTx.uid].state == 0);
         require(challengesLength(decodedTx.uid) == 0);
 
@@ -256,7 +263,15 @@ contract RootChain is Ownable {
         emit StartExit(prevDecodedTx.uid, previousTxBlockNum, lastTxBlockNum);
     }
 
-    /** @dev .
+    /** @dev Finishes the procedure for withdrawal of the deposit from the system.
+     *       Can only call the owner. Usually the owner is the mediator contract.
+     *  @param account Account that initialized the deposit withdrawal.
+     *  @param previousTx Penultimate deposit transaction.
+     *  @param previousTxProof Proof of inclusion of a penultimate transaction in a Smart Plasma block.
+     *  @param previousTxBlockNum The number of the block in which the penultimate transaction is included.
+     *  @param lastTx Last deposit transaction.
+     *  @param lastTxProof Proof of inclusion of a last transaction in a Smart Plasma block.
+     *  @param lastTxBlockNum The number of the block in which the last transaction is included.
      */
     function finishExit(
         address account,
@@ -314,7 +329,11 @@ contract RootChain is Ownable {
         return bytes32(decodedTx.uid);
     }
 
-    /** @dev .
+    /** @dev Challenges a exit.
+     *  @param uid Unique identifier of a deposit.
+     *  @param challengeTx Transaction that disputes an exit.
+     *  @param proof Proof of inclusion of the transaction in a Smart Plasma block.
+     *  @param challengeBlockNum The number of the block in which the transaction is included.
      */
     function challengeExit(
         uint256 uid,
@@ -364,7 +383,14 @@ contract RootChain is Ownable {
         emit ChallengeExit(uid);
     }
 
-    /** @dev .
+    /** @dev Challenges a checkpoint.
+     *  @param uid Unique identifier of a deposit (uid).
+     *  @param checkpointRoot Merkle root for checkpoint block.
+     *  @param checkpointProof Proof of inclusion of a uid in a checkpoint block.
+     *  @param wrongNonce Invalid transaction nonce, according to caller.
+     *  @param lastTx Last deposit transaction, according to caller.
+     *  @param lastTxProof Proof of inclusion of a last transaction (according to caller) in a Smart Plasma block.
+     *  @param lastTxBlockNum The number of the block in which the last transaction (according to caller) is included.
      */
     function challengeCheckpoint(
         uint256 uid,
@@ -416,7 +442,12 @@ contract RootChain is Ownable {
         emit ChallengeCheckpoint(uid, checkpointRoot);
     }
 
-    /** @dev .
+    /** @dev Answers a challenge exit.
+     *  @param uid Unique identifier of a deposit.
+     *  @param challengeTx Transaction that disputes an exit.
+     *  @param respondTx Transaction that answers to a dispute transaction.
+     *  @param proof Proof of inclusion of the respond transaction in a Smart Plasma block.
+     *  @param blockNum The number of the block in which the respond transaction is included.
      */
     function respondChallengeExit(
         uint256 uid,
@@ -453,7 +484,13 @@ contract RootChain is Ownable {
         emit RespondChallengeExit(uid);
     }
 
-    /** @dev .
+    /** @dev Answers a challenge checkpoint.
+     *  @param uid Unique identifier of a deposit.
+     *  @param checkpointRoot Merkle root for checkpoint block.
+     *  @param challengeTx Transaction that disputes the checkpoint.
+     *  @param respondTx Transaction that answers to a dispute transaction.
+     *  @param proof Proof of inclusion of the respond transaction in a Smart Plasma block.
+     *  @param blockNum The number of the block in which the respond transaction is included.
      */
     function respondCheckpointChallenge(
         uint256 uid,
@@ -485,7 +522,14 @@ contract RootChain is Ownable {
         emit RespondCheckpointChallenge(uid, checkpointRoot);
     }
 
-    /** @dev .
+    /** @dev Answers a challenge checkpoint with historical checkpoint.
+     *  @param uid Unique identifier of a deposit.
+     *  @param checkpointRoot Merkle root for checkpoint block.
+     *  @param checkpointProof Proof of inclusion of the uid in a checkpoint block.
+     *  @param historicalCheckpointRoot Merkle root for historical checkpoint block. (historical checkpoint before challenge checkpoint)
+     *  @param historicalCheckpointProof Proof of inclusion of the uid in a historical checkpoint block.
+     *  @param challengeTx Transaction that disputes a checkpoint.
+     *  @param moreNonce transaction nonce which is more than challengeTx nonce. This nonce is present in the historical checkpoint.
      */
     function respondWithHistoricalCheckpoint(
         uint256 uid,
@@ -520,7 +564,9 @@ contract RootChain is Ownable {
         emit RespondWithHistoricalCheckpoint(uid, checkpointRoot, historicalCheckpointRoot);
     }
 
-    /** @dev .
+    /** @dev If this is true, that a exit is blocked by a transaction of challenge.
+     *  @param uid Unique identifier of a deposit.
+     *  @param challengeTx Transaction that disputes an exit.
      */
     function challengeExists(
         uint256 uid,
@@ -537,7 +583,10 @@ contract RootChain is Ownable {
         return disputes[uid].challenges[index].exists;
     }
 
-    /** @dev .
+    /** @dev If this is true, that a checkpoint is blocked by a transaction of challenge.
+     *  @param uid Unique identifier of a deposit.
+     *  @param checkpoint Merkle root for checkpoint block.
+     *  @param challengeTx Transaction that disputes a checkpoint.
      */
     function checkpointIsChallenge(
         uint256 uid,
@@ -555,7 +604,8 @@ contract RootChain is Ownable {
         return checkpointDisputes[uid][checkpoint].challenges[index].exists;
     }
 
-    /** @dev .
+    /** @dev Returns number of disputes on withdrawal of uid.
+     *  @param uid Unique identifier of a deposit (uid).
      */
     function challengesLength(
         uint256 uid
@@ -572,7 +622,9 @@ contract RootChain is Ownable {
         return(origLen.sub(uint256(1)));
     }
 
-    /** @dev .
+    /** @dev Returns number of disputes for checkpoint by a uid.
+     *  @param uid Unique identifier of a deposit (uid).
+     *  @param checkpoint Merkle root for checkpoint block.
      */
     function checkpointChallengesLength(
         uint256 uid,
@@ -590,7 +642,9 @@ contract RootChain is Ownable {
         return(origLen.sub(uint256(1)));
     }
 
-    /** @dev .
+    /** @dev Returns exit challenge transaction by uid and index.
+     *  @param uid Unique identifier of a deposit (uid).
+     *  @param index Unique index of exit challenge transaction.
      */
     function getChallenge(
         uint256 uid,
@@ -605,7 +659,10 @@ contract RootChain is Ownable {
         return(che.challengeTx, che.blockNumber);
     }
 
-    /** @dev .
+    /** @dev Returns checkpoint challenge transaction by checkpoint merkle root, uid and index..
+     *  @param uid Unique identifier of a deposit (uid).
+     *  @param checkpoint merkle root for checkpoint block.
+     *  @param index Unique index of checkpoint challenge transaction.     
      */
     function getCheckpointChallenge(
         uint256 uid,
@@ -621,7 +678,11 @@ contract RootChain is Ownable {
         return(che.challengeTx, che.blockNumber);
     }
 
-    /** @dev .
+    /** @dev Adds new challenge for checkpoint.
+     *  @param uid Unique identifier of a deposit (uid).
+     *  @param checkpoint merkle root for checkpoint block.
+     *  @param challengeTx Transaction that disputes the checkpoint.
+     *  @param challengeBlockNumber The number of the block in which the challenge transaction is included.
      */
     function addCheckpointChallenge(
         uint256 uid,
@@ -641,7 +702,7 @@ contract RootChain is Ownable {
             blockNumber: challengeBlockNumber
             });
 
-        // index 1 is magic number
+        /// index 1 is magic number
         if (checkpointDisputes[uid][checkpoint].len == 0) {
             checkpointDisputes[uid][checkpoint].len = 1;
         }
@@ -653,7 +714,10 @@ contract RootChain is Ownable {
         checkpointDisputes[uid][checkpoint].len = currentLen.add(uint256(1));
     }
 
-    /** @dev .
+    /** @dev Adds new challenge for exit.
+     *  @param uid Unique identifier of a deposit (uid).
+     *  @param challengeTx Transaction that disputes the exit.
+     *  @param challengeBlockNumber The number of the block in which the challenge transaction is included.
      */
     function addChallenge(
         uint256 uid,
@@ -672,7 +736,7 @@ contract RootChain is Ownable {
             blockNumber: challengeBlockNumber
         });
 
-        // index 1 is magic number
+        /// index 1 is magic number
         if (disputes[uid].len == 0) {
             disputes[uid].len = 1;
         }
@@ -682,7 +746,10 @@ contract RootChain is Ownable {
         disputes[uid].len = disputes[uid].len.add(uint256(1));
     }
 
-    /** @dev .
+    /** @dev Removes checkpoint challenge from storage.
+     *  @param uid Unique identifier of a deposit (uid).
+     *  @param checkpoint merkle root for checkpoint block.
+     *  @param challengeTx Transaction that disputes the checkpoint.
      */
     function removeCheckpointChallenge(
         uint256 uid,
@@ -707,7 +774,7 @@ contract RootChain is Ownable {
             delete(checkpointDisputes[uid][checkpoint].challenges[lastIndex]);
         }
 
-        // index 1 is magic number
+        /// index 1 is magic number
         if (lastIndex == 1) {
             checkpointDisputes[uid][checkpoint].len = 0;
             return;
@@ -716,7 +783,9 @@ contract RootChain is Ownable {
         checkpointDisputes[uid][checkpoint].len = lastIndex;
     }
 
-    /** @dev .
+    /** @dev Removes exit challenge from storage.
+     *  @param uid Unique identifier of a deposit (uid).
+     *  @param challengeTx Transaction that disputes the checkpoint.
      */
     function removeChallenge(
         uint256 uid,
@@ -740,7 +809,7 @@ contract RootChain is Ownable {
             delete(disputes[uid].challenges[lastIndex]);
         }
 
-        // index 1 is magic number
+        /// index 1 is magic number
         if (lastIndex == 1) {
             disputes[uid].len = 0;
             return;
