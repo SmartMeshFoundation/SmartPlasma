@@ -11,12 +11,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
-// txBlock object.
-type txBlock struct {
+// TxBlock defines the methods for standard Transactions block.
+type TxBlock interface {
+	block.Block
+	AddTx(tx *transaction.Transaction) error
+}
+
+// TrBlock is transactions block object.
+type TrBlock struct {
 	mtx  sync.Mutex
 	uIDs []string
 	txs  map[string]*transaction.Transaction
@@ -25,16 +32,16 @@ type txBlock struct {
 	built bool
 }
 
-// NewTxBlock creates new block in memory.
-func NewTxBlock() *txBlock {
-	return &txBlock{
+// NewTxBlock creates new Transactions block in memory.
+func NewTxBlock() TxBlock {
+	return &TrBlock{
 		mtx: sync.Mutex{},
 		txs: make(map[string]*transaction.Transaction),
 	}
 }
 
 // Hash returns block hash.
-func (bl *txBlock) Hash() common.Hash {
+func (bl *TrBlock) Hash() common.Hash {
 	if !bl.built {
 		return common.Hash{}
 	}
@@ -42,7 +49,7 @@ func (bl *txBlock) Hash() common.Hash {
 }
 
 // AddTx adds a transaction to the block.
-func (bl *txBlock) AddTx(tx *transaction.Transaction) error {
+func (bl *TrBlock) AddTx(tx *transaction.Transaction) error {
 	bl.mtx.Lock()
 	defer bl.mtx.Unlock()
 
@@ -58,12 +65,12 @@ func (bl *txBlock) AddTx(tx *transaction.Transaction) error {
 }
 
 // NumberOfTX returns number of transactions in the block.
-func (bl *txBlock) NumberOfTX() int64 {
+func (bl *TrBlock) NumberOfTX() int64 {
 	return int64(len(bl.txs))
 }
 
 // Build finalizes the block.
-func (bl *txBlock) Build() (common.Hash, error) {
+func (bl *TrBlock) Build() (common.Hash, error) {
 	if bl.built {
 		return common.Hash{}, errors.New("block is already built")
 	}
@@ -94,7 +101,7 @@ func (bl *txBlock) Build() (common.Hash, error) {
 }
 
 // CreateProof creates merkle proof for particular uid.
-func (bl *txBlock) CreateProof(uid *big.Int) []byte {
+func (bl *TrBlock) CreateProof(uid *big.Int) []byte {
 	if !bl.built {
 		return nil
 	}
@@ -103,7 +110,7 @@ func (bl *txBlock) CreateProof(uid *big.Int) []byte {
 }
 
 // Marshal encodes block object to raw json data.
-func (bl *txBlock) Marshal() ([]byte, error) {
+func (bl *TrBlock) Marshal() ([]byte, error) {
 	txs := make(map[string][]byte)
 
 	for uid, tx := range bl.txs {
@@ -127,7 +134,7 @@ func (bl *txBlock) Marshal() ([]byte, error) {
 }
 
 // Unmarshal decodes raw json data to block object.
-func (bl *txBlock) Unmarshal(raw []byte) error {
+func (bl *TrBlock) Unmarshal(raw []byte) error {
 	var txs map[string][]byte
 
 	if err := json.Unmarshal(raw, &txs); err != nil {

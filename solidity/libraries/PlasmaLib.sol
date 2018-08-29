@@ -5,8 +5,19 @@ library PlasmaLib {
         address account,
         address currency,
         uint depositCount
-    ) internal pure returns(bytes32) {
-        return bytes32(keccak256(abi.encodePacked(currency,
-            account, depositCount)));
+    )
+        internal
+        pure
+        returns(bytes32)
+    {
+        return bytes32(
+            keccak256(
+                abi.encodePacked(
+                    currency,
+                    account,
+                    depositCount
+                )
+            )
+        );
     }
 }

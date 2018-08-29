@@ -9,11 +9,18 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
-// checkpointBlock object.
-type checkpointBlock struct {
+// CheckpointBlock defines the methods for standard Checkpoints block.
+type CheckpointBlock interface {
+	block.Block
+	AddCheckpoint(uid, number *big.Int) error
+}
+
+// ChptBlock is checkpoint block object.
+type ChptBlock struct {
 	mtx     sync.Mutex
 	uIDs    []string
 	numbers map[string]common.Hash
@@ -22,21 +29,24 @@ type checkpointBlock struct {
 	built bool
 }
 
-func NewBlock() *checkpointBlock {
-	return &checkpointBlock{
+// NewBlock creates new Checkpoints block in memory.
+func NewBlock() CheckpointBlock {
+	return &ChptBlock{
 		mtx:     sync.Mutex{},
 		numbers: make(map[string]common.Hash),
 	}
 }
 
-func (bl *checkpointBlock) Hash() common.Hash {
+// Hash returns block hash.
+func (bl *ChptBlock) Hash() common.Hash {
 	if !bl.built {
 		return common.Hash{}
 	}
 	return bl.tree.Root()
 }
 
-func (bl *checkpointBlock) AddCheckpoint(uid, number *big.Int) error {
+// AddCheckpoint adds a checkpoints to the block.
+func (bl *ChptBlock) AddCheckpoint(uid, number *big.Int) error {
 	bl.mtx.Lock()
 	defer bl.mtx.Unlock()
 
@@ -51,11 +61,13 @@ func (bl *checkpointBlock) AddCheckpoint(uid, number *big.Int) error {
 	return nil
 }
 
-func (bl *checkpointBlock) NumberOfCheckpoints() int64 {
+// NumberOfCheckpoints returns number of checkpoints in the block.
+func (bl *ChptBlock) NumberOfCheckpoints() int64 {
 	return int64(len(bl.numbers))
 }
 
-func (bl *checkpointBlock) Build() (common.Hash, error) {
+// Build finalizes the block.
+func (bl *ChptBlock) Build() (common.Hash, error) {
 	if bl.built {
 		return common.Hash{}, errors.New("block is already built")
 	}
@@ -79,7 +91,8 @@ func (bl *checkpointBlock) Build() (common.Hash, error) {
 	return bl.tree.Root(), nil
 }
 
-func (bl *checkpointBlock) Marshal() ([]byte, error) {
+// Marshal encodes block object to raw json data.
+func (bl *ChptBlock) Marshal() ([]byte, error) {
 	raw, err := json.Marshal(bl.numbers)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to encode"+
@@ -89,7 +102,8 @@ func (bl *checkpointBlock) Marshal() ([]byte, error) {
 	return raw, nil
 }
 
-func (bl *checkpointBlock) Unmarshal(raw []byte) error {
+// Unmarshal decodes raw json data to block object.
+func (bl *ChptBlock) Unmarshal(raw []byte) error {
 	var checkpoints map[string]common.Hash
 
 	if err := json.Unmarshal(raw, &checkpoints); err != nil {
@@ -110,7 +124,8 @@ func (bl *checkpointBlock) Unmarshal(raw []byte) error {
 	return nil
 }
 
-func (bl *checkpointBlock) CreateProof(uid *big.Int) []byte {
+// CreateProof creates merkle proof for particular uid.
+func (bl *ChptBlock) CreateProof(uid *big.Int) []byte {
 	if !bl.built {
 		return nil
 	}

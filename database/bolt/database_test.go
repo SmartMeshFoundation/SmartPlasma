@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/pborman/uuid"
+	"math/big"
 )
 
 const (
@@ -31,17 +32,14 @@ func TestDB(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = database.Set(testVal)
+	var number int64 = 5
+
+	err = database.Set([]byte(big.NewInt(number).String()), testVal)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	number, err := database.Current()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	val, err := database.Get(number)
+	val, err := database.Get([]byte(new(big.Int).SetInt64(number).String()))
 	if err != nil {
 		t.Fatal(err)
 	}

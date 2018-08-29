@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	// Default value to depth.
+	// Depth257 value to depth.
 	Depth257 = big.NewInt(defaultDepth)
 
 	one = big.NewInt(1)
@@ -61,6 +61,7 @@ func (tr *Tree) Root() common.Hash {
 	return tr.root
 }
 
+// GetStructure returns source merkle tree.
 func (tr *Tree) GetStructure() []map[string]common.Hash {
 	return tr.tree
 }

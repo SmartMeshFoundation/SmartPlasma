@@ -129,7 +129,7 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal("failed to create new checkpoint")
 	}
 
-	// + 3 week
+	// + 3 weeks
 	timeMachine(t, time.Duration(504*time.Hour))
 
 	chpt2 := checkpoints.NewBlock()

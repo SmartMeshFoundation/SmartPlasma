@@ -1,6 +1,8 @@
 package erc20token
 
 import (
+	"context"
+
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -35,7 +37,7 @@ func Deploy(account *bind.TransactOpts,
 		return common.Address{}, nil, err
 	}
 
-	_, err = server.Mine(tx)
+	_, err = server.Mine(context.Background(), tx)
 	if err != nil {
 		return common.Address{}, nil, err
 	}
