@@ -2,8 +2,6 @@ package service
 
 import (
 	"testing"
-
-	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
 )
 
 func TestMediatorTransaction(t *testing.T) {
@@ -33,19 +31,6 @@ func TestMediatorTransaction(t *testing.T) {
 
 	if !server.GoodTransaction(tx) {
 		t.Fatal("failed to deposit tokens")
-	}
-
-	logs, err := rootchain.LogsDeposit(i.rootOwnerSession.Contract)
-	if err != nil {
-		t.Fatalf("failed to parse deposit logs %s", err)
-	}
-
-	if len(logs) != 1 {
-		t.Fatal("wrong number of logs")
-	}
-
-	if logs[0].Depositor.String() != user1.From.String() {
-		t.Fatal("wrong depositor")
 	}
 }
 

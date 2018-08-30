@@ -8,10 +8,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
-	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/crypto"
+	"github.com/SmartMeshFoundation/Spectrum/crypto/sha3"
+	"github.com/SmartMeshFoundation/Spectrum/rlp"
 )
 
 // Errors transaction-related errors.

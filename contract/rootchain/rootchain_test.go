@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi/bind"
+	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/crypto"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
@@ -88,20 +88,24 @@ func testDeposit(t *testing.T, i *instance) (uid *big.Int) {
 		t.Fatal(err)
 	}
 
+	uid, err = GenerateNextUID(i.rootUser1Session,
+		common.BigToAddress(key.X), common.BigToAddress(key.Y))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	deposit(t, i, common.BigToAddress(key.X), common.BigToAddress(key.Y), one)
 
-	// receive logs with deposit. Get uid
-	logs, err := LogsDeposit(i.rootOwnerSession.Contract)
+	amount, err := i.rootOwnerSession.Wallet(common.BigToHash(uid))
 	if err != nil {
-		t.Fatalf("failed to parse deposit logs %s", err)
+		t.Fatal(err)
 	}
 
-	// TODO: single deposit. Not applicable for multiple deposits.
-	if len(logs) != 1 {
-		t.Fatal("wrong number of logs")
+	if amount.Uint64() == 0 {
+		t.Fatal("amount is null")
 	}
 
-	return logs[0].Uid
+	return uid
 }
 
 func deposit(t *testing.T, i *instance,

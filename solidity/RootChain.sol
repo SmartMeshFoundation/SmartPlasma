@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.18;
 
 import "./libraries/PlasmaLib.sol";
 import "./libraries/datastructures/Transaction.sol";
@@ -138,7 +138,7 @@ contract RootChain is Ownable {
     /** @dev Constructor of RootChain contract.
      *  @param _operator Address of Plasma Cash operator.
      */
-    constructor (address _operator) public {
+    function RootChain (address _operator) public {
         blockNumber = 0;
         challengePeriod = 2 weeks;
         depositCount = 0;
@@ -172,7 +172,7 @@ contract RootChain is Ownable {
         wallet[uid] = amount;
         depositCount = depositCount.add(uint256(1));
 
-        emit Deposit(account, amount, uint256(uid));
+        Deposit(account, amount, uint256(uid));
 
         return uid;
     }
@@ -184,7 +184,7 @@ contract RootChain is Ownable {
         blockNumber = blockNumber.add(uint256(1));
         childChain[blockNumber] = hash;
 
-        emit NewBlock(hash);
+        NewBlock(hash);
     }
 
     /** @dev Creates new Checkpoint. Can only call the operator.
@@ -195,7 +195,7 @@ contract RootChain is Ownable {
 
         checkpoints[hash] = now;
 
-        emit NewCheckpoint(hash);
+        NewCheckpoint(hash);
     }
 
     /** @dev Starts the procedure for withdrawal of the deposit from the system.
@@ -260,7 +260,7 @@ contract RootChain is Ownable {
             txBeforeExitTx: previousTx
         });
 
-        emit StartExit(prevDecodedTx.uid, previousTxBlockNum, lastTxBlockNum);
+        StartExit(prevDecodedTx.uid, previousTxBlockNum, lastTxBlockNum);
     }
 
     /** @dev Finishes the procedure for withdrawal of the deposit from the system.
@@ -324,7 +324,7 @@ contract RootChain is Ownable {
 
         delete(wallet[bytes32(decodedTx.uid)]);
 
-        emit FinishExit(decodedTx.uid);
+        FinishExit(decodedTx.uid);
 
         return bytes32(decodedTx.uid);
     }
@@ -380,7 +380,7 @@ contract RootChain is Ownable {
 
         require(exits[uid].state == 1);
 
-        emit ChallengeExit(uid);
+        ChallengeExit(uid);
     }
 
     /** @dev Challenges a checkpoint.
@@ -439,7 +439,7 @@ contract RootChain is Ownable {
             );
         }
 
-        emit ChallengeCheckpoint(uid, checkpointRoot);
+        ChallengeCheckpoint(uid, checkpointRoot);
     }
 
     /** @dev Answers a challenge exit.
@@ -481,7 +481,7 @@ contract RootChain is Ownable {
             exits[uid].state = 2;
         }
 
-        emit RespondChallengeExit(uid);
+        RespondChallengeExit(uid);
     }
 
     /** @dev Answers a challenge checkpoint.
@@ -519,7 +519,7 @@ contract RootChain is Ownable {
 
         removeCheckpointChallenge(uid, checkpointRoot, challengeTx);
 
-        emit RespondCheckpointChallenge(uid, checkpointRoot);
+        RespondCheckpointChallenge(uid, checkpointRoot);
     }
 
     /** @dev Answers a challenge checkpoint with historical checkpoint.
@@ -561,7 +561,7 @@ contract RootChain is Ownable {
 
         removeCheckpointChallenge(uid, checkpointRoot, challengeTx);
 
-        emit RespondWithHistoricalCheckpoint(uid, checkpointRoot, historicalCheckpointRoot);
+        RespondWithHistoricalCheckpoint(uid, checkpointRoot, historicalCheckpointRoot);
     }
 
     /** @dev If this is true, that a exit is blocked by a transaction of challenge.

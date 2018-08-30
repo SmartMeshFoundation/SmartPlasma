@@ -4,7 +4,7 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/SmartMeshFoundation/Spectrum/common"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"

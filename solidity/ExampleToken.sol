@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.18;
 
 import "./libraries/token/ERC20/MintableToken.sol";
 
@@ -27,11 +27,11 @@ contract ExampleToken is MintableToken {
         _;
     }
 
-    constructor() public {
+    function ExampleToken() public {
 
     }
 
-    // if changeApproveState == true then approve and increaseApproval not work
+    /// if changeApproveState == true then approve and increaseApproval not work
     function changeApproveState() public {
         if (disableApprove) {
             disableApprove = false;
@@ -40,7 +40,7 @@ contract ExampleToken is MintableToken {
         }
     }
 
-    // if disableTransferFrom == true then transferFrom not work
+    /// if disableTransferFrom == true then transferFrom not work
     function changeTransferFromState() public {
         if (disableTransferFrom) {
             disableTransferFrom = false;

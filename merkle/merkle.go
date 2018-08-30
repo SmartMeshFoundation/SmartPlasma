@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/crypto"
 	"github.com/pkg/errors"
 )
 

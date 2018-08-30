@@ -8,7 +8,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/SmartMeshFoundation/Spectrum/common"
 	"github.com/pkg/errors"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"

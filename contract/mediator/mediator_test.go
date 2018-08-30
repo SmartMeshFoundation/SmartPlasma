@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi/bind"
+	"github.com/SmartMeshFoundation/Spectrum/common"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
@@ -26,12 +26,9 @@ var (
 	user1 *account.PlasmaTransactOpts
 	user2 *account.PlasmaTransactOpts
 
-	one   = big.NewInt(1)
-	two   = big.NewInt(2)
-	three = big.NewInt(3)
-	four  = big.NewInt(4)
-	five  = big.NewInt(5)
-	zero  = big.NewInt(0)
+	one  = big.NewInt(1)
+	two  = big.NewInt(2)
+	zero = big.NewInt(0)
 )
 
 type instance struct {
@@ -66,7 +63,7 @@ func newInstance(t *testing.T) *instance {
 	}
 
 	i.mediatorAddr = address
-	i.rootChainAddr, err = mediator.RootChain(&bind.CallOpts{})
+	i.rootChainAddr, err = mediator.RootChain(&bind.CallOptsWithNumber{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,21 +238,25 @@ func testDeposit(t *testing.T, i *instance) (uid *big.Int) {
 	mint(t, i.tokenOwnerSession, user1.From, one)
 	increaseApproval(t, i.tokenUser1Session, i.mediatorAddr, one)
 
+	uid, err := rootchain.GenerateNextUID(i.rootUser1Session,
+		user1.From, i.tokenAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// deposit
 	deposit(t, i.mediatorUser1Session, i.tokenAddr, one, true)
 
-	// receive logs with deposit. Get uid
-	logs, err := rootchain.LogsDeposit(i.rootOwnerSession.Contract)
+	amount, err := i.rootOwnerSession.Wallet(common.BigToHash(uid))
 	if err != nil {
-		t.Fatalf("failed to parse deposit logs %s", err)
+		t.Fatal(err)
 	}
 
-	// TODO: single deposit. Not applicable for multiple deposits.
-	if len(logs) != 1 {
-		t.Fatal("wrong number of logs")
+	if amount.Uint64() == 0 {
+		t.Fatal("amount is null")
 	}
 
-	return logs[0].Uid
+	return uid
 }
 
 func testTx(t *testing.T, prevBlock, uid,
@@ -367,22 +368,6 @@ func TestMediatorNormalFlow(t *testing.T) {
 	withdraw(t, i.mediatorUser2Session, tx1.rawTx, tx1.proof,
 		one, tx2.rawTx, tx2.proof, two, true)
 
-	// withdraw test 1
-	logsTransfer, err := erc20token.LogsTransfer(i.tokenOwnerSession.Contract)
-	if err != nil {
-		t.Fatal("failed to parse transfer logs")
-	}
-
-	if len(logsTransfer) != 3 {
-		t.Fatal("invalid number of transfer transactions")
-	}
-
-	if logsTransfer[2].From.String() != i.mediatorAddr.String() ||
-		logsTransfer[2].To.String() != user2.From.String() ||
-		logsTransfer[2].Value.Int64() != one.Int64() {
-		t.Fatal("invalid withdraw")
-	}
-
 	amount, err := i.rootUser1Session.Wallet(common.BigToHash(uid))
 	if err != nil {
 		t.Fatal(err)
@@ -414,17 +399,6 @@ func TestMediatorDeposit(t *testing.T) {
 	mint(t, i.tokenOwnerSession, user1.From, one)
 	increaseApproval(t, i.tokenUser1Session, i.mediatorAddr, one)
 	deposit(t, i.mediatorUser1Session, i.tokenAddr, one, true)
-
-	rootSession := rootChainSession(t, user1.TransactOpts, i.rootChainAddr)
-
-	// deposit test2
-	logs, err := rootchain.LogsDeposit(rootSession.Contract)
-	if err != nil {
-		t.Fatal("failed to parse deposit logs")
-	}
-	if len(logs) != 1 {
-		t.Fatal("invalid number of deposit transactions")
-	}
 }
 
 func TestMediatorCheckToken(t *testing.T) {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/SmartMeshFoundation/Spectrum"
+	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/core/types"
 	"github.com/pkg/errors"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block"
@@ -86,6 +86,6 @@ func (s *Service) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 // transactions may be added or removed by miners, but it should provide a basis
 // for setting a reasonable default.
 func (s *Service) EstimateGas(ctx context.Context,
-	call ethereum.CallMsg) (gas uint64, err error) {
+	call ethereum.CallMsg) (gas *big.Int, err error) {
 	return s.backend.Connect().EstimateGas(ctx, call)
 }

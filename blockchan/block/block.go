@@ -3,7 +3,7 @@ package block
 import (
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/SmartMeshFoundation/Spectrum/common"
 )
 
 // Block defines the methods for abstract block.

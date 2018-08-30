@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi/bind"
+	"github.com/SmartMeshFoundation/Spectrum/crypto"
 )
 
 func testKey(t *testing.T) *ecdsa.PrivateKey {

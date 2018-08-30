@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi/bind"
+	"github.com/SmartMeshFoundation/Spectrum/common"
 	"github.com/pborman/uuid"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
@@ -247,6 +247,20 @@ func deposit(t *testing.T, s *testService, cli *Client,
 	mint(t, tokOwnerSession, s.accounts[0].From, amount, s.backend)
 	increaseApproval(t, tokOwnerSession, s.mediatorAddress, amount, s.backend)
 
+	// for test
+	rSession, err := rootchain.NewRootChainSession(*s.accounts[0].TransactOpts,
+		s.rootChainAddress, s.backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// for test
+	uid, err := rootchain.GenerateNextUID(rSession,
+		cli.opts.From, tokenAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tx, err := cli.Deposit(tokenAddr, amount)
 	if err != nil {
 		t.Fatal(err)
@@ -259,23 +273,16 @@ func deposit(t *testing.T, s *testService, cli *Client,
 		t.Fatal("transaction is failed")
 	}
 
-	// receive logs with deposit. Get UID
-	rch, err := rootchain.NewRootChain(s.rootChainAddress, s.backend.Connect())
+	amount2, err := rSession.Wallet(common.BigToHash(uid))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	logs, err := rootchain.LogsDeposit(rch)
-	if err != nil {
-		t.Fatalf("failed to parse deposit logs %s", err)
+	if amount2.Uint64() != amount.Uint64() {
+		t.Fatal("amount is wrong")
 	}
 
-	// TODO: single deposit. Not applicable for multiple deposits.
-	if len(logs) != 1 {
-		t.Fatal("wrong number of logs")
-	}
-
-	return logs[0].Uid
+	return uid
 }
 
 func testTx(t *testing.T, prevBlock, uid,

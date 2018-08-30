@@ -5,8 +5,8 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/SmartMeshFoundation/Spectrum"
+	"github.com/SmartMeshFoundation/Spectrum/common"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
@@ -104,7 +104,7 @@ type EstimateGasReq struct {
 
 // EstimateGasResp is response for EstimateGas method.
 type EstimateGasResp struct {
-	Gas   uint64
+	Gas   *big.Int
 	Error string
 }
 

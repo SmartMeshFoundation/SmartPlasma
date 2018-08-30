@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi"
+	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/core/types"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
