@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.18;
 
 library PlasmaLib {
     function generateUID(
@@ -12,11 +12,9 @@ library PlasmaLib {
     {
         return bytes32(
             keccak256(
-                abi.encodePacked(
-                    currency,
-                    account,
-                    depositCount
-                )
+                currency,
+                account,
+                depositCount
             )
         );
     }

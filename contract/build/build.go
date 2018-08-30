@@ -7,11 +7,11 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/SmartMeshFoundation/Spectrum"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi/bind"
+	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/core/types"
 )
 
 // Transactor defines the methods needed to allow operating with contract
@@ -20,7 +20,7 @@ type Transactor interface {
 	PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error)
 	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
 	SuggestGasPrice(ctx context.Context) (*big.Int, error)
-	EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error)
+	EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas *big.Int, err error)
 }
 
 // Errors.
@@ -98,7 +98,7 @@ func (c *Contract) Transaction(opts *bind.TransactOpts, method string,
 		}
 	}
 	gasLimit := opts.GasLimit
-	if gasLimit == 0 {
+	if gasLimit == nil || gasLimit.Uint64() == 0 {
 		if (c.address != common.Address{}) {
 			if code, err := c.transactor.PendingCodeAt(
 				ensureContext(opts.Context), c.address); err != nil {

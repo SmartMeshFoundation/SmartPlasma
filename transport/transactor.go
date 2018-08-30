@@ -4,8 +4,8 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/SmartMeshFoundation/Spectrum"
+	"github.com/SmartMeshFoundation/Spectrum/common"
 	"github.com/pkg/errors"
 )
 
@@ -65,18 +65,18 @@ func (c *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 // There is no guarantee that this is the true gas limit requirement as other
 // transactions may be added or removed by miners, but it should provide a basis
 // for setting a reasonable default.
-func (c *Client) EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error) {
+func (c *Client) EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas *big.Int, err error) {
 	req := &EstimateGasReq{
 		Call: call,
 	}
 
 	var resp EstimateGasResp
 	if err := c.connect.Call(EstimateGasMethod, req, &resp); err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	if resp.Error != "" {
-		return 0, errors.New(resp.Error)
+		return nil, errors.New(resp.Error)
 	}
 
 	return resp.Gas, nil

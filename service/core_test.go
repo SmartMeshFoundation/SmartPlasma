@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/SmartMeshFoundation/Spectrum/common"
 	"github.com/pborman/uuid"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
@@ -20,8 +20,8 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/mediator"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
 	"github.com/SmartMeshFoundation/SmartPlasma/database/bolt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi"
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi/bind"
 )
 
 var (

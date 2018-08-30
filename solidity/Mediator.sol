@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+pragma solidity ^0.4.18;
 
 import "./libraries/ownership/Ownable.sol";
 
@@ -61,7 +61,7 @@ contract Mediator is Ownable {
         uint amount;
     }
 
-    constructor() public {
+    function Mediator() public {
         joined = false;
     }
 
