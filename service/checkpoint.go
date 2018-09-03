@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/core/types"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
@@ -64,12 +65,9 @@ func (s *Service) SaveCheckpointToDB(chpt checkpoints.CheckpointBlock) error {
 }
 
 // SendChptHash sends a Checkpoint block hash to the blockchain.
-func (s *Service) SendChptHash(ctx context.Context, hash common.Hash) error {
-	tx, err := s.session.NewCheckpoint(hash)
-	if err != nil {
-		return err
-	}
-	return s.mineTx(ctx, tx)
+func (s *Service) SendChptHash(
+	ctx context.Context, hash common.Hash) (*types.Transaction, error) {
+	return s.session.NewCheckpoint(hash)
 }
 
 // IsValidCheckpoint returns true if the uid is fixed at the checkpoint

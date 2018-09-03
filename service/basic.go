@@ -89,3 +89,9 @@ func (s *Service) EstimateGas(ctx context.Context,
 	call ethereum.CallMsg) (gas *big.Int, err error) {
 	return s.backend.Connect().EstimateGas(ctx, call)
 }
+
+// Mine to wait mining.
+func (s *Service) Mine(ctx context.Context,
+	tx *types.Transaction) (*types.Receipt, error) {
+	return s.backend.Mine(ctx, tx)
+}

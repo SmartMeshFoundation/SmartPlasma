@@ -32,7 +32,12 @@ func TestCreateProof(t *testing.T) {
 
 	block1 := i.service.CurrentBlock()
 
-	err = i.service.SendBlockHash(context.Background(), block1.Hash())
+	sendBlockTx, err := i.service.SendBlockHash(context.Background(), block1.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = i.service.mineTx(context.Background(), sendBlockTx)
 	if err != nil {
 		t.Fatal(err)
 	}

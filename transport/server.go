@@ -15,8 +15,9 @@ const (
 
 // Server is RPC server to Plasma Cash service.
 type Server struct {
-	port   uint16
-	server *http.Server
+	port    uint16
+	server  *http.Server
+	service *service.Service
 }
 
 // NewServer creates new RPC server to Plasma Cash service.
@@ -33,8 +34,9 @@ func NewServer(timeout int, port uint16, service *service.Service) *Server {
 	}
 
 	return &Server{
-		port:   port,
-		server: httpServer,
+		port:    port,
+		server:  httpServer,
+		service: service,
 	}
 }
 
@@ -50,5 +52,6 @@ func (srv *Server) ListenAndServe() error {
 
 // Close stops RPC server to Plasma Cash service.
 func (srv *Server) Close() error {
+	srv.service.Close()
 	return srv.server.Close()
 }

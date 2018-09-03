@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Spectrum"
 	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/core/types"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
@@ -108,6 +109,17 @@ type EstimateGasResp struct {
 	Error string
 }
 
+// WaitMinedReq is request for WaitMined method.
+type WaitMinedReq struct {
+	Tx []byte
+}
+
+// WaitMinedResp is response for WaitMined method.
+type WaitMinedResp struct {
+	Tr    []byte
+	Error string
+}
+
 // RawReq is request for methods that works raw transactions.
 type RawReq struct {
 	RawTx []byte
@@ -143,6 +155,7 @@ type SendBlockHashReq struct {
 
 // SendBlockHashResp is response for SendBlockHash method.
 type SendBlockHashResp struct {
+	Tx    []byte
 	Error string
 }
 
@@ -153,6 +166,7 @@ type SendCheckpointHashReq struct {
 
 // SendCheckpointHashResp is response for SendCheckpointHash method.
 type SendCheckpointHashResp struct {
+	Tx    []byte
 	Error string
 }
 
@@ -248,6 +262,148 @@ type VerifyCheckpointProofReq struct {
 type VerifyCheckpointProofResp struct {
 	Exists bool
 	Error  string
+}
+
+// DepositCountReq is request for DepositCount method.
+type DepositCountReq struct{}
+
+// DepositCountResp is response for DepositCount method.
+type DepositCountResp struct {
+	Count *big.Int
+	Error string
+}
+
+// ChallengePeriodReq is request for ChallengePeriod method.
+type ChallengePeriodReq struct{}
+
+// ChallengePeriodResp is response for ChallengePeriod method.
+type ChallengePeriodResp struct {
+	ChallengePeriod *big.Int
+	Error           string
+}
+
+// OperatorReq is request for Operator method.
+type OperatorReq struct{}
+
+// OperatorResp is response for Operator method.
+type OperatorResp struct {
+	Operator common.Address
+	Error    string
+}
+
+// ChildChainReq is request for ChildChain method.
+type ChildChainReq struct {
+	BlockNumber *big.Int
+}
+
+// ChildChainResp is response for ChildChain method.
+type ChildChainResp struct {
+	BlockHash common.Hash
+	Error     string
+}
+
+// ExitsReq is request for Exits method.
+type ExitsReq struct {
+	UID *big.Int
+}
+
+// ExitsResp is response for Exits method.
+type ExitsResp struct {
+	State                *big.Int
+	ExitTime             *big.Int
+	ExitTxBlkNum         *big.Int
+	ExitTx               []byte
+	TxBeforeExitTxBlkNum *big.Int
+	TxBeforeExitTx       []byte
+	Error                string
+}
+
+// WalletReq is request for Wallet method.
+type WalletReq struct {
+	UID *big.Int
+}
+
+// WalletResp is response for Wallet method.
+type WalletResp struct {
+	Amount *big.Int
+	Error  string
+}
+
+// ChallengeExistsReq is request for ChallengeExists method.
+type ChallengeExistsReq struct {
+	UID         *big.Int
+	ChallengeTx []byte
+}
+
+// ChallengeExistsResp is response for ChallengeExists method.
+type ChallengeExistsResp struct {
+	Exists bool
+	Error  string
+}
+
+// CheckpointIsChallengeReq is request for CheckpointIsChallenge method.
+type CheckpointIsChallengeReq struct {
+	UID         *big.Int
+	Checkpoint  common.Hash
+	ChallengeTx []byte
+}
+
+// CheckpointIsChallengeResp is response for CheckpointIsChallenge method.
+type CheckpointIsChallengeResp struct {
+	Exists bool
+	Error  string
+}
+
+// ChallengesLengthReq is request for ChallengesLength method.
+type ChallengesLengthReq struct {
+	UID *big.Int
+}
+
+// ChallengesLengthResp is response for ChallengesLength method.
+type ChallengesLengthResp struct {
+	Length *big.Int
+	Error  string
+}
+
+// CheckpointChallengesLengthReq is request
+// for CheckpointChallengesLength method.
+type CheckpointChallengesLengthReq struct {
+	UID        *big.Int
+	Checkpoint common.Hash
+}
+
+// CheckpointChallengesLengthResp is response
+// for CheckpointChallengesLength method.
+type CheckpointChallengesLengthResp struct {
+	Length *big.Int
+	Error  string
+}
+
+// GetChallengeReq is request for GetChallenge method.
+type GetChallengeReq struct {
+	UID   *big.Int
+	Index *big.Int
+}
+
+// GetChallengeResp is response for GetChallenge method.
+type GetChallengeResp struct {
+	ChallengeTx    []byte
+	ChallengeBlock *big.Int
+	Error          string
+}
+
+// GetCheckpointChallengeReq is request for GetCheckpointChallenge method.
+type GetCheckpointChallengeReq struct {
+	UID        *big.Int
+	Checkpoint common.Hash
+	Index      *big.Int
+}
+
+// GetCheckpointChallengeResp is response for GetCheckpointChallenge method.
+type GetCheckpointChallengeResp struct {
+	ChallengeTx    []byte
+	ChallengeBlock *big.Int
+	Error          string
 }
 
 // AcceptTransaction accepts a raw transaction and returns a response.
@@ -350,6 +506,33 @@ func (api *SmartPlasma) EstimateGas(req *EstimateGasReq,
 		return nil
 	}
 	resp.Gas = gas
+	return nil
+}
+
+// WaitMined waits for tx to be mined on the blockchain.
+// It stops waiting when the context is canceled.
+func (api *SmartPlasma) WaitMined(req *WaitMinedReq,
+	resp *WaitMinedResp) error {
+	tx := &types.Transaction{}
+	err := tx.UnmarshalJSON(req.Tx)
+	if err != nil {
+		resp.Error = err.Error()
+		return nil
+	}
+
+	tr, err := api.service.Mine(context.Background(), tx)
+	if err != nil {
+		resp.Error = err.Error()
+		return nil
+	}
+
+	raw, err := tr.MarshalJSON()
+	if err != nil {
+		resp.Error = err.Error()
+		return nil
+	}
+
+	resp.Tr = raw
 	return nil
 }
 
@@ -461,20 +644,32 @@ func (api *SmartPlasma) BuildCheckpoint(req *BuildCheckpointReq,
 // SendBlockHash sends hash of transactions block to RootChain contract.
 func (api *SmartPlasma) SendBlockHash(req *SendBlockHashReq,
 	resp *SendBlockHashResp) error {
-	err := api.service.SendBlockHash(context.Background(), req.Hash)
+	tx, err := api.service.SendBlockHash(context.Background(), req.Hash)
+	if err != nil {
+		resp.Error = err.Error()
+		return nil
+	}
+	rawTx, err := tx.MarshalJSON()
 	if err != nil {
 		resp.Error = err.Error()
 	}
+	resp.Tx = rawTx
 	return nil
 }
 
 // SendCheckpointHash sends hash of checkpoints block to RootChain contract.
 func (api *SmartPlasma) SendCheckpointHash(req *SendCheckpointHashReq,
-	resp *SendBlockHashResp) error {
-	err := api.service.SendChptHash(context.Background(), req.Hash)
+	resp *SendCheckpointHashResp) error {
+	tx, err := api.service.SendChptHash(context.Background(), req.Hash)
+	if err != nil {
+		resp.Error = err.Error()
+		return nil
+	}
+	rawTx, err := tx.MarshalJSON()
 	if err != nil {
 		resp.Error = err.Error()
 	}
+	resp.Tx = rawTx
 	return nil
 }
 
@@ -588,5 +783,150 @@ func (api *SmartPlasma) VerifyCheckpointProof(req *VerifyCheckpointProofReq,
 		resp.Error = err.Error()
 	}
 	resp.Exists = exists
+	return nil
+}
+
+// DepositCount returns a deposit counter.
+func (api *SmartPlasma) DepositCount(
+	req *DepositCountReq, resp *DepositCountResp) error {
+	count, err := api.service.DepositCount()
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.Count = count
+	return nil
+}
+
+// ChallengePeriod returns a period for challenging in seconds.
+func (api *SmartPlasma) ChallengePeriod(
+	req *ChallengePeriodReq, resp *ChallengePeriodResp) error {
+	secs, err := api.service.ChallengePeriod()
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.ChallengePeriod = secs
+	return nil
+}
+
+// Operator returns a Plasma Cash operator address.
+func (api *SmartPlasma) Operator(req *OperatorReq, resp *OperatorResp) error {
+	operator, err := api.service.Operator()
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.Operator = operator
+	return nil
+}
+
+// ChildChain returns a block hash by a block number.
+func (api *SmartPlasma) ChildChain(
+	req *ChildChainReq, resp *ChildChainResp) error {
+	hash, err := api.service.ChildChain(req.BlockNumber)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.BlockHash = hash
+	return nil
+}
+
+// Exits returns a incomplete exit by UID.
+func (api *SmartPlasma) Exits(req *ExitsReq, resp *ExitsResp) error {
+	result, err := api.service.Exits(req.UID)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.State = result.State
+	resp.ExitTime = result.ExitTime
+	resp.ExitTxBlkNum = result.ExitTxBlkNum
+	resp.ExitTx = result.ExitTx
+	resp.TxBeforeExitTxBlkNum = result.TxBeforeExitTxBlkNum
+	resp.TxBeforeExitTx = result.TxBeforeExitTx
+	return nil
+}
+
+// Wallet returns a deposit amount.
+func (api *SmartPlasma) Wallet(
+	req *WalletReq, resp *WalletResp) error {
+	amount, err := api.service.Wallet(req.UID)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.Amount = amount
+	return nil
+}
+
+// ChallengeExists if this is true,
+// that a exit is blocked by a transaction of challenge.
+func (api *SmartPlasma) ChallengeExists(
+	req *ChallengeExistsReq, resp *ChallengeExistsResp) error {
+	exists, err := api.service.ChallengeExists(req.UID, req.ChallengeTx)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.Exists = exists
+	return nil
+}
+
+// CheckpointIsChallenge if this is true,
+// that a checkpoint is blocked by a transaction of challenge.
+func (api *SmartPlasma) CheckpointIsChallenge(
+	req *CheckpointIsChallengeReq, resp *CheckpointIsChallengeResp) error {
+	exists, err := api.service.CheckpointIsChallenge(
+		req.UID, req.Checkpoint, req.ChallengeTx)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.Exists = exists
+	return nil
+}
+
+// ChallengesLength returns number of disputes on withdrawal of uid.
+func (api *SmartPlasma) ChallengesLength(
+	req *ChallengesLengthReq, resp *ChallengesLengthResp) error {
+	length, err := api.service.ChallengesLength(req.UID)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.Length = length
+	return nil
+}
+
+// CheckpointChallengesLength returns number of disputes
+// for checkpoint by a uid.
+func (api *SmartPlasma) CheckpointChallengesLength(
+	req *CheckpointChallengesLengthReq,
+	resp *CheckpointChallengesLengthResp) error {
+	length, err := api.service.CheckpointChallengesLength(
+		req.UID, req.Checkpoint)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.Length = length
+	return nil
+}
+
+// GetChallenge returns exit challenge transaction by uid and index.
+func (api *SmartPlasma) GetChallenge(
+	req *GetChallengeReq, resp *GetChallengeResp) error {
+	result, err := api.service.GetChallenge(req.UID, req.Index)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.ChallengeTx = result.ChallengeTx
+	resp.ChallengeBlock = result.ChallengeBlock
+	return nil
+}
+
+// GetCheckpointChallenge Returns checkpoint challenge transaction
+// by checkpoint merkle root, uid and index.
+func (api *SmartPlasma) GetCheckpointChallenge(
+	req *GetCheckpointChallengeReq, resp *GetCheckpointChallengeResp) error {
+	result, err := api.service.GetCheckpointChallenge(
+		req.UID, req.Checkpoint, req.Index)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.ChallengeTx = result.ChallengeTx
+	resp.ChallengeBlock = result.ChallengeBlock
 	return nil
 }
