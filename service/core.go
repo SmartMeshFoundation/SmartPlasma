@@ -40,7 +40,11 @@ func NewService(session *rootchain.RootChainSession, backend backend.Backend,
 }
 
 // Close stops service.
-func (s *Service) Close() {
-	s.blockBase.Close()
-	s.chptBase.Close()
+func (s *Service) Close() error {
+	err := s.blockBase.Close()
+	if err != nil {
+		return err
+	}
+	return s.chptBase.Close()
+
 }

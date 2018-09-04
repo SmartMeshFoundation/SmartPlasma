@@ -9,8 +9,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-// PendingCodeAt returns the code of the given Account in the pending state.
-func (c *Client) PendingCodeAt(ctx context.Context, account common.Address) ([]byte, error) {
+// PendingCodeAt returns the code of the given Account
+// in the pending state.
+func (c *Client) PendingCodeAt(
+	ctx context.Context, account common.Address) ([]byte, error) {
 	req := &PendingCodeAtReq{
 		Account: account,
 	}
@@ -26,8 +28,10 @@ func (c *Client) PendingCodeAt(ctx context.Context, account common.Address) ([]b
 	return resp.Code, nil
 }
 
-// PendingNonceAt retrieves the current pending nonce associated with an Account.
-func (c *Client) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
+// PendingNonceAt retrieves the current pending nonce
+// associated with an Account.
+func (c *Client) PendingNonceAt(
+	ctx context.Context, account common.Address) (uint64, error) {
 	req := &PendingNonceAtReq{
 		Account: account,
 	}
@@ -65,7 +69,8 @@ func (c *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 // There is no guarantee that this is the true gas limit requirement as other
 // transactions may be added or removed by miners, but it should provide a basis
 // for setting a reasonable default.
-func (c *Client) EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas *big.Int, err error) {
+func (c *Client) EstimateGas(
+	ctx context.Context, call ethereum.CallMsg) (gas *big.Int, err error) {
 	req := &EstimateGasReq{
 		Call: call,
 	}

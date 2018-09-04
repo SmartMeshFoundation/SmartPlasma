@@ -33,10 +33,10 @@ contract RootChain is Ownable {
     uint256 public blockNumber;
 
     /** @dev The period for challenging. */
-    uint256 challengePeriod;
+    uint256 public challengePeriod;
 
     /** @dev Plasma Cash operator address. */
-    address operator;
+    address public operator;
 
     /** @dev Dictionary of child chain blocks.
      *
@@ -659,7 +659,7 @@ contract RootChain is Ownable {
         return(che.challengeTx, che.blockNumber);
     }
 
-    /** @dev Returns checkpoint challenge transaction by checkpoint merkle root, uid and index..
+    /** @dev Returns checkpoint challenge transaction by checkpoint merkle root, uid and index.
      *  @param uid Unique identifier of a deposit (uid).
      *  @param checkpoint merkle root for checkpoint block.
      *  @param index Unique index of checkpoint challenge transaction.     

@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"math/big"
 	"net/http/httptest"
@@ -150,7 +151,8 @@ func (s *testService) Close() {
 	s.server.Close()
 }
 
-func testClient(t *testing.T, srv *testService, direct bool, user *account.PlasmaTransactOpts) *Client {
+func testClient(t *testing.T, srv *testService, direct bool,
+	user *account.PlasmaTransactOpts) *Client {
 	cli := NewClient(100, user)
 	err := cli.ConnectString(srv.server.URL[7:])
 	if err != nil {
@@ -158,18 +160,9 @@ func testClient(t *testing.T, srv *testService, direct bool, user *account.Plasm
 	}
 
 	if direct {
-		mSession, err := mediator.NewMediatorSession(*user.TransactOpts,
-			srv.mediatorAddress, srv.backend)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		rSession, err := rootchain.NewRootChainSession(*user.TransactOpts,
+		cli.DirectEthereumClient(
+			*user.TransactOpts, srv.mediatorAddress,
 			srv.rootChainAddress, srv.backend)
-		if err != nil {
-			t.Fatal(err)
-		}
-		cli.DirectEthereumClient(mSession, rSession)
 	}
 
 	parsed, err := abi.JSON(strings.NewReader(rootchain.RootChainABI))
@@ -192,6 +185,11 @@ func testClient(t *testing.T, srv *testService, direct bool, user *account.Plasm
 		t.Fatal(err)
 	}
 	cli.RemoteEthereumClient(rc, mc)
+
+	_, err = cli.ChallengePeriod()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	return cli
 }
@@ -269,17 +267,32 @@ func deposit(t *testing.T, s *testService, cli *Client,
 		t.Fatal("Hash is null")
 	}
 
-	if !s.backend.GoodTransaction(tx) {
+	tr, err := cli.WaitMined(context.Background(), tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if tr.Status != 1 {
 		t.Fatal("transaction is failed")
 	}
 
-	amount2, err := rSession.Wallet(common.BigToHash(uid))
+	amount2, err := cli.Wallet(uid)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if amount2.Uint64() != amount.Uint64() {
 		t.Fatal("amount is wrong")
+	}
+
+	count, err := cli.DepositCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if count.Uint64() != 1 {
+		t.Fatal("wrong deposit count")
+
 	}
 
 	return uid
@@ -337,13 +350,18 @@ func addTx(t *testing.T, uid *big.Int,
 		t.Fatal(buildResp.Error)
 	}
 
-	sendBlockHashResp, err := cli.SendBlockHash(buildResp.Hash)
+	sendBlock1Tx, err := cli.SendBlockHash(buildResp.Hash)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if sendBlockHashResp.Error != "" {
-		t.Fatal(sendBlockHashResp.Error)
+	sendBlock1Tr, err := cli.WaitMined(context.Background(), sendBlock1Tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sendBlock1Tr.Status != 1 {
+		t.Fatal("wrong tx status")
 	}
 
 	lastBlock, err := cli.LastBlockNumber()
@@ -412,6 +430,15 @@ func testAcceptTransaction(t *testing.T, direct bool) {
 
 	cli := testClient(t, s, direct, s.accounts[0])
 	defer cli.Close()
+
+	operator, err := cli.Operator()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if operator.String() != s.accounts[0].From.String() {
+		t.Fatal("wrong operator")
+	}
 
 	tx, err := transaction.NewTransaction(zero, one, two,
 		three, s.accounts[0].From)
@@ -608,7 +635,7 @@ func testWithdraw(t *testing.T, direct bool) {
 	tx2 := testTx(t, one, uid, one, one, s.accounts[1].From, s.accounts[0])
 
 	tx1Obj := addTx(t, uid, tx1, cli)
-	tx2Obj := addTx(t, uid, tx2, cli2)
+	tx2Obj := addTx(t, uid, tx2, cli)
 
 	startExitTx, err := cli2.StartExit(tx1Obj.rawTx, tx1Obj.proof,
 		new(big.Int).SetUint64(tx1Obj.block), tx2Obj.rawTx,
@@ -620,6 +647,16 @@ func testWithdraw(t *testing.T, direct bool) {
 	if !s.backend.GoodTransaction(startExitTx) {
 		t.Fatal("failed to start exit")
 	}
+
+	exitsResp, err := cli.Exits(uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exitsResp.State.Uint64() != 2 {
+		t.Fatal("wrong exit state")
+	}
+
 	timeMachine(t, time.Duration(504*time.Hour), s.backend)
 
 	withdrawTx, err := cli2.Withdraw(tx1Obj.rawTx, tx1Obj.proof,
@@ -631,6 +668,15 @@ func testWithdraw(t *testing.T, direct bool) {
 
 	if !s.backend.GoodTransaction(withdrawTx) {
 		t.Fatal("failed to start exit")
+	}
+
+	block1Hash, err := cli.ChildChain(big.NewInt(int64(tx1Obj.block)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if block1Hash.String() != tx1Obj.blockHash.String() {
+		t.Fatal("wrong child chain block")
 	}
 }
 
@@ -669,6 +715,15 @@ func testChallengeNonce(t *testing.T, direct bool) {
 		t.Fatal(err)
 	}
 
+	resp, err := cli3.Exits(uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.State.Uint64() != 2 {
+		t.Fatal("exit not exist")
+	}
+
 	if !s.backend.GoodTransaction(startExitTx) {
 		t.Fatal("failed to start exit")
 	}
@@ -681,6 +736,15 @@ func testChallengeNonce(t *testing.T, direct bool) {
 
 	if !s.backend.GoodTransaction(challengeExitTx) {
 		t.Fatal("failed to start exit")
+	}
+
+	resp, err = cli3.Exits(uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.State.Uint64() != 0 {
+		t.Fatal("exit is exist")
 	}
 }
 
@@ -794,6 +858,37 @@ func testEarlyChallengeDoubleSpending(t *testing.T, direct bool) {
 	if !s.backend.GoodTransaction(challengeExitTx) {
 		t.Fatal("failed to start exit")
 	}
+
+	exist, err := cli.ChallengeExists(uid, tx2Obj.rawTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !exist {
+		t.Fatal("challenge not exists")
+	}
+
+	length, err := cli.ChallengesLength(uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if length.Uint64() != 1 {
+		t.Fatal("challenges length is null")
+	}
+
+	challenge1, err := cli.GetChallenge(uid, zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if challenge1.ChallengeBlock.Uint64() != tx2Obj.block {
+		t.Fatal("wrong challenge block")
+	}
+
+	if !bytes.Equal(challenge1.ChallengeTx, tx2Obj.rawTx) {
+		t.Fatal("wrong challenge tx")
+	}
 }
 
 func TestEarlyChallengeDoubleSpending(t *testing.T) {
@@ -862,6 +957,15 @@ func testRespondToChallenge(t *testing.T, direct bool) {
 	if !s.backend.GoodTransaction(respondChallengeExitTx) {
 		t.Fatal("failed to start exit")
 	}
+
+	exist, err := cli.ChallengeExists(uid, tx2Obj.rawTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exist {
+		t.Fatal("challenge is exists")
+	}
 }
 
 func TestRespondToChallenge(t *testing.T) {
@@ -908,14 +1012,20 @@ func TestCheckpointChallenge(t *testing.T) {
 		t.Fatal(buildCheckpointResp.Error)
 	}
 
-	sendCheckpointHashResp, err := cli.SendCheckpointHash(
+	sendCheckpointHashTx, err := cli.SendCheckpointHash(
 		buildCheckpointResp.Hash)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if sendCheckpointHashResp.Error != "" {
-		t.Fatal(sendCheckpointHashResp.Error)
+	sendCheckpointHashTr, err := cli.WaitMined(
+		context.Background(), sendCheckpointHashTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sendCheckpointHashTr.Status != 1 {
+		t.Fatal("wrong transaction status")
 	}
 
 	currentCheckpointResp, err := cli.CurrentCheckpoint()
@@ -972,6 +1082,40 @@ func TestCheckpointChallenge(t *testing.T) {
 
 	if !s.backend.GoodTransaction(challengeCheckpointTx) {
 		t.Fatal("failed to start exit")
+	}
+
+	exist, err := cli.CheckpointIsChallenge(
+		uid, buildCheckpointResp.Hash, tx2Obj.rawTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !exist {
+		t.Fatal("checkpoint not challenges")
+	}
+
+	length, err := cli.CheckpointChallengesLength(
+		uid, buildCheckpointResp.Hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if length.Uint64() != 1 {
+		t.Fatal("challenges length not equal 1")
+	}
+
+	challenge1, err := cli.GetCheckpointChallenge(
+		uid, buildCheckpointResp.Hash, zero)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if challenge1.ChallengeBlock.Uint64() != tx2Obj.block {
+		t.Fatal("wrong challenge block")
+	}
+
+	if !bytes.Equal(challenge1.ChallengeTx, tx2Obj.rawTx) {
+		t.Fatal("wrong challenge tx")
 	}
 
 	respTx, err := cli.RespondCheckpointChallenge(uid,
@@ -1033,14 +1177,20 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal(buildCheckpointResp.Error)
 	}
 
-	sendCheckpointHashResp, err := cli.SendCheckpointHash(
+	sendCheckpointHashTx, err := cli.SendCheckpointHash(
 		buildCheckpointResp.Hash)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if sendCheckpointHashResp.Error != "" {
-		t.Fatal(sendCheckpointHashResp.Error)
+	sendCheckpointHashTr, err := cli.WaitMined(
+		context.Background(), sendCheckpointHashTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sendCheckpointHashTr.Status != 1 {
+		t.Fatal("wrong transaction status")
 	}
 
 	currentCheckpointResp, err := cli.CurrentCheckpoint()
@@ -1103,14 +1253,20 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal(buildCheckpointResp2.Error)
 	}
 
-	sendCheckpointHashResp, err = cli.SendCheckpointHash(
+	sendCheckpointHashTx2, err := cli.SendCheckpointHash(
 		buildCheckpointResp2.Hash)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if sendCheckpointHashResp.Error != "" {
-		t.Fatal(sendCheckpointHashResp.Error)
+	sendCheckpointHashTr2, err := cli.WaitMined(
+		context.Background(), sendCheckpointHashTx2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sendCheckpointHashTr2.Status != 1 {
+		t.Fatal("wrong transaction status")
 	}
 
 	currentCheckpointResp2, err := cli.CurrentCheckpoint()

@@ -54,7 +54,12 @@ func TestCreateUidStateProof(t *testing.T) {
 
 	chpt := i.service.CurrentCheckpoint()
 
-	err = i.service.SendChptHash(context.Background(), chpt.Hash())
+	tx, err := i.service.SendChptHash(context.Background(), chpt.Hash())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = i.service.mineTx(context.Background(), tx)
 	if err != nil {
 		t.Fatal(err)
 	}

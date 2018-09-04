@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/core/types"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
@@ -71,12 +72,9 @@ func (s *Service) SaveBlockToDB(number uint64,
 }
 
 // SendBlockHash sends a Plasma block hash to the blockchain.
-func (s *Service) SendBlockHash(ctx context.Context, hash common.Hash) error {
-	tx, err := s.session.NewBlock(hash)
-	if err != nil {
-		return err
-	}
-	return s.mineTx(ctx, tx)
+func (s *Service) SendBlockHash(
+	ctx context.Context, hash common.Hash) (*types.Transaction, error) {
+	return s.session.NewBlock(hash)
 }
 
 // LastBlockNumber gets last block number from blockchain.

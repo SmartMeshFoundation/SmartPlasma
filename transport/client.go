@@ -1,15 +1,18 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"net/rpc"
 
+	"github.com/SmartMeshFoundation/Spectrum/accounts/abi/bind"
 	"github.com/SmartMeshFoundation/Spectrum/common"
 	"github.com/SmartMeshFoundation/Spectrum/core/types"
 	"github.com/pkg/errors"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/build"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/mediator"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
@@ -31,6 +34,7 @@ const (
 	PendingNonceAtMethod  = "SmartPlasma.PendingNonceAt"
 	SuggestGasPriceMethod = "SmartPlasma.SuggestGasPrice"
 	EstimateGasMethod     = "SmartPlasma.EstimateGas"
+	WaitMinedMethod       = "SmartPlasma.WaitMined"
 
 	DepositMethod                         = "SmartPlasma.Deposit"
 	WithdrawMethod                        = "SmartPlasma.Withdraw"
@@ -49,17 +53,30 @@ const (
 	InitBlockMethod       = "SmartPlasma.InitBlock"
 	VerifyTxProofMethod   = "SmartPlasma.VerifyTxProof"
 
-	BuildCheckpointMethod       = "SmartPlasma.BuildCheckpoint"
-	SendCheckpointHashMethod    = "SmartPlasma.SendCheckpointHash"
-	CurrentCheckpointMethod     = "SmartPlasma.CurrentCheckpoint"
-	SaveCheckpointToDBMethod    = "SmartPlasma.SaveCheckpointToDB"
-	InitCheckpointMethod        = "SmartPlasma.InitCheckpoint"
-	VerifyCheckpointProofMethod = "SmartPlasma.VerifyCheckpointProof"
+	BuildCheckpointMethod            = "SmartPlasma.BuildCheckpoint"
+	SendCheckpointHashMethod         = "SmartPlasma.SendCheckpointHash"
+	CurrentCheckpointMethod          = "SmartPlasma.CurrentCheckpoint"
+	SaveCheckpointToDBMethod         = "SmartPlasma.SaveCheckpointToDB"
+	InitCheckpointMethod             = "SmartPlasma.InitCheckpoint"
+	VerifyCheckpointProofMethod      = "SmartPlasma.VerifyCheckpointProof"
+	DepositCountMethod               = "SmartPlasma.DepositCount"
+	ChallengePeriodMethod            = "SmartPlasma.ChallengePeriod"
+	OperatorMethod                   = "SmartPlasma.Operator"
+	ChildChainMethod                 = "SmartPlasma.ChildChain"
+	ExitsMethod                      = "SmartPlasma.Exits"
+	WalletMethod                     = "SmartPlasma.Wallet"
+	ChallengeExistsMethod            = "SmartPlasma.ChallengeExists"
+	CheckpointIsChallengeMethod      = "SmartPlasma.CheckpointIsChallenge"
+	ChallengesLengthMethod           = "SmartPlasma.ChallengesLength"
+	CheckpointChallengesLengthMethod = "SmartPlasma.CheckpointChallengesLength"
+	GetChallengeMethod               = "SmartPlasma.GetChallenge"
+	GetCheckpointChallengeMethod     = "SmartPlasma.GetCheckpointChallenge"
 )
 
 // Client is RPC client for PlasmaCash.
 type Client struct {
 	connect          *rpc.Client
+	backend          backend.Backend
 	sessionMediator  *mediator.MediatorSession
 	sessionRootChain *rootchain.RootChainSession
 	opts             *account.PlasmaTransactOpts
@@ -87,10 +104,23 @@ func (c *Client) RemoteEthereumClient(root, med *build.Contract) {
 }
 
 // DirectEthereumClient initializes work with direct ethereum client.
-func (c *Client) DirectEthereumClient(sessionMediator *mediator.MediatorSession,
-	sessionRootChain *rootchain.RootChainSession) {
-	c.sessionRootChain = sessionRootChain
-	c.sessionMediator = sessionMediator
+func (c *Client) DirectEthereumClient(opts bind.TransactOpts,
+	mediatorAddress, rootChainAddress common.Address, backend backend.Backend) {
+	mSession, err := mediator.NewMediatorSession(
+		opts, mediatorAddress, backend)
+	if err != nil {
+		panic(err)
+	}
+
+	rSession, err := rootchain.NewRootChainSession(
+		opts, rootChainAddress, backend)
+	if err != nil {
+		panic(err)
+	}
+
+	c.sessionRootChain = rSession
+	c.sessionMediator = mSession
+	c.backend = backend
 }
 
 // Connect tries to connect to a PlasmaCash RPC server.
@@ -517,26 +547,57 @@ func (c *Client) BuildCheckpoint() (resp *BuildCheckpointResp,
 }
 
 // SendBlockHash sends new transactions block hash to RootChain contract.
-func (c *Client) SendBlockHash(hash common.Hash) (resp *SendBlockHashResp,
+func (c *Client) SendBlockHash(hash common.Hash) (tx *types.Transaction,
 	err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.NewBlock(hash)
+	}
+
 	req := &SendBlockHashReq{hash}
+	var resp *SendBlockHashResp
 	err = c.connect.Call(SendBlockHashMethod, req, &resp)
 	if err != nil {
 		return nil, err
 	}
-	return resp, err
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+
+	tx = &types.Transaction{}
+	err = tx.UnmarshalJSON(resp.Tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, err
 }
 
 // SendCheckpointHash sends new checkpoints block hash to RootChain contract.
-func (c *Client) SendCheckpointHash(hash common.Hash) (resp *SendBlockHashResp,
+func (c *Client) SendCheckpointHash(hash common.Hash) (tx *types.Transaction,
 	err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.NewCheckpoint(hash)
+	}
 
-	req := &SendBlockHashReq{hash}
+	req := &SendCheckpointHashReq{hash}
+	var resp *SendCheckpointHashResp
 	err = c.connect.Call(SendCheckpointHashMethod, req, &resp)
 	if err != nil {
 		return nil, err
 	}
-	return resp, err
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+
+	tx = &types.Transaction{}
+	err = tx.UnmarshalJSON(resp.Tx)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, err
 }
 
 // LastBlockNumber returns last transactions block number
@@ -652,6 +713,327 @@ func (c *Client) VerifyCheckpointProof(uid *big.Int, number *big.Int,
 	err = c.connect.Call(VerifyCheckpointProofMethod, req, &resp)
 	if err != nil {
 		return nil, err
+	}
+	return resp, err
+}
+
+// WaitMined to wait mining.
+func (c *Client) WaitMined(
+	ctx context.Context, tx *types.Transaction) (*types.Receipt, error) {
+	if c.backend != nil {
+		return c.backend.Mine(ctx, tx)
+	}
+
+	raw, err := tx.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	req := &WaitMinedReq{
+		Tx: raw,
+	}
+
+	var resp WaitMinedResp
+	call := c.connect.Go(WaitMinedMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return nil, err
+		}
+	case <-ctx.Done():
+		return nil, errors.New("timeout")
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+
+	tr := &types.Receipt{}
+	err = tr.UnmarshalJSON(resp.Tr)
+	if err != nil {
+		return nil, err
+	}
+
+	return tr, nil
+}
+
+// DepositCount returns a deposit counter.
+func (c *Client) DepositCount() (count *big.Int, err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.DepositCount()
+	}
+	req := &DepositCountReq{}
+	var resp *DepositCountResp
+	err = c.connect.Call(DepositCountMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+	return resp.Count, err
+}
+
+// ChallengePeriod returns a period for challenging in seconds.
+func (c *Client) ChallengePeriod() (count *big.Int, err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.ChallengePeriod()
+	}
+	req := &ChallengePeriodReq{}
+	var resp *ChallengePeriodResp
+	err = c.connect.Call(ChallengePeriodMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+	return resp.ChallengePeriod, err
+}
+
+// Operator returns a Plasma Cash operator address.
+func (c *Client) Operator() (address common.Address, err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.Operator()
+	}
+	req := &OperatorReq{}
+	var resp *OperatorResp
+	err = c.connect.Call(OperatorMethod, req, &resp)
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	if resp.Error != "" {
+		return common.Address{}, errors.New(resp.Error)
+	}
+	return resp.Operator, err
+}
+
+// ChildChain returns a block hash by a block number.
+func (c *Client) ChildChain(
+	blockNumber *big.Int) (hash common.Hash, err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.ChildChain(blockNumber)
+	}
+	req := &ChildChainReq{
+		BlockNumber: blockNumber,
+	}
+	var resp *ChildChainResp
+	err = c.connect.Call(ChildChainMethod, req, &resp)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	if resp.Error != "" {
+		return common.Hash{}, errors.New(resp.Error)
+	}
+	return resp.BlockHash, err
+}
+
+// Exits returns a incomplete exit by UID.
+func (c *Client) Exits(uid *big.Int) (resp *ExitsResp, err error) {
+	if c.sessionRootChain != nil {
+		result, err := c.sessionRootChain.Exits(uid)
+		if err != nil {
+			return nil, err
+		}
+		resp = &ExitsResp{
+			State:                result.State,
+			ExitTime:             result.ExitTime,
+			ExitTxBlkNum:         result.ExitTxBlkNum,
+			ExitTx:               result.ExitTx,
+			TxBeforeExitTxBlkNum: result.TxBeforeExitTxBlkNum,
+			TxBeforeExitTx:       result.TxBeforeExitTx,
+		}
+		return resp, err
+	}
+	req := &ExitsReq{
+		UID: uid,
+	}
+
+	err = c.connect.Call(ExitsMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+	return resp, err
+}
+
+// Wallet returns a deposit amount.
+func (c *Client) Wallet(uid *big.Int) (amount *big.Int, err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.Wallet(common.BigToHash(uid))
+	}
+	req := &WalletReq{
+		UID: uid,
+	}
+	var resp *WalletResp
+	err = c.connect.Call(WalletMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+	return resp.Amount, err
+}
+
+// ChallengeExists if this is true,
+// that a exit is blocked by a transaction of challenge.
+func (c *Client) ChallengeExists(
+	uid *big.Int, challengeTx []byte) (exists bool, err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.ChallengeExists(uid, challengeTx)
+	}
+	req := &ChallengeExistsReq{
+		UID:         uid,
+		ChallengeTx: challengeTx,
+	}
+	var resp *ChallengeExistsResp
+	err = c.connect.Call(ChallengeExistsMethod, req, &resp)
+	if err != nil {
+		return false, err
+	}
+
+	if resp.Error != "" {
+		return false, errors.New(resp.Error)
+	}
+	return resp.Exists, err
+}
+
+// CheckpointIsChallenge if this is true,
+// that a checkpoint is blocked by a transaction of challenge.
+func (c *Client) CheckpointIsChallenge(
+	uid *big.Int, checkpoint common.Hash,
+	challengeTx []byte) (exists bool, err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.CheckpointIsChallenge(
+			uid, checkpoint, challengeTx)
+	}
+	req := &CheckpointIsChallengeReq{
+		UID:         uid,
+		Checkpoint:  checkpoint,
+		ChallengeTx: challengeTx,
+	}
+	var resp *CheckpointIsChallengeResp
+	err = c.connect.Call(CheckpointIsChallengeMethod, req, &resp)
+	if err != nil {
+		return false, err
+	}
+
+	if resp.Error != "" {
+		return false, errors.New(resp.Error)
+	}
+	return resp.Exists, err
+}
+
+// ChallengesLength returns number of disputes on withdrawal of uid.
+func (c *Client) ChallengesLength(uid *big.Int) (length *big.Int, err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.ChallengesLength(uid)
+	}
+	req := &ChallengesLengthReq{
+		UID: uid,
+	}
+	var resp *ChallengesLengthResp
+	err = c.connect.Call(ChallengesLengthMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+	return resp.Length, err
+}
+
+// CheckpointChallengesLength returns number of disputes
+// for checkpoint by a uid.
+func (c *Client) CheckpointChallengesLength(
+	uid *big.Int, checkpoint common.Hash) (length *big.Int, err error) {
+	if c.sessionRootChain != nil {
+		return c.sessionRootChain.CheckpointChallengesLength(uid, checkpoint)
+	}
+	req := &CheckpointChallengesLengthReq{
+		UID:        uid,
+		Checkpoint: checkpoint,
+	}
+	var resp *CheckpointChallengesLengthResp
+	err = c.connect.Call(CheckpointChallengesLengthMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+	return resp.Length, err
+}
+
+// GetChallenge returns exit challenge transaction by uid and index.
+func (c *Client) GetChallenge(
+	uid, index *big.Int) (resp *GetChallengeResp, err error) {
+	if c.sessionRootChain != nil {
+		result, err := c.sessionRootChain.GetChallenge(uid, index)
+		if err != nil {
+			return nil, err
+		}
+		resp = &GetChallengeResp{
+			ChallengeTx:    result.ChallengeTx,
+			ChallengeBlock: result.ChallengeBlock,
+		}
+		return resp, err
+	}
+	req := &GetChallengeReq{
+		UID:   uid,
+		Index: index,
+	}
+	err = c.connect.Call(GetChallengeMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+	return resp, err
+}
+
+// GetCheckpointChallenge Returns checkpoint challenge transaction
+// by checkpoint merkle root, uid and index.
+func (c *Client) GetCheckpointChallenge(uid *big.Int, checkpoint common.Hash,
+	index *big.Int) (resp *GetCheckpointChallengeResp, err error) {
+	if c.sessionRootChain != nil {
+		result, err := c.sessionRootChain.GetCheckpointChallenge(
+			uid, checkpoint, index)
+		if err != nil {
+			return nil, err
+		}
+		resp = &GetCheckpointChallengeResp{
+			ChallengeTx:    result.ChallengeTx,
+			ChallengeBlock: result.ChallengeBlock,
+		}
+		return resp, err
+	}
+	req := &GetCheckpointChallengeReq{
+		UID:        uid,
+		Checkpoint: checkpoint,
+		Index:      index,
+	}
+	err = c.connect.Call(GetCheckpointChallengeMethod, req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
 	}
 	return resp, err
 }
