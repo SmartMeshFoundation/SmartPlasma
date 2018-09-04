@@ -332,13 +332,9 @@ func addTx(t *testing.T, uid *big.Int,
 		t.Fatal(err)
 	}
 
-	acceptResp, err := cli.AcceptTransaction(buf.Bytes())
+	err = cli.AcceptTransaction(buf.Bytes())
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if acceptResp.Error != "" {
-		t.Fatal(acceptResp.Error)
 	}
 
 	buildResp, err := cli.BuildBlock()
@@ -346,11 +342,7 @@ func addTx(t *testing.T, uid *big.Int,
 		t.Fatal(err)
 	}
 
-	if buildResp.Error != "" {
-		t.Fatal(buildResp.Error)
-	}
-
-	sendBlock1Tx, err := cli.SendBlockHash(buildResp.Hash)
+	sendBlock1Tx, err := cli.SendBlockHash(buildResp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -374,53 +366,36 @@ func addTx(t *testing.T, uid *big.Int,
 		t.Fatal(err)
 	}
 
-	saveBlockResp, err := cli.SaveBlockToDB(lastBlock.Uint64(),
-		currentBlockResp.Block)
+	err = cli.SaveBlockToDB(lastBlock.Uint64(), currentBlockResp)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if saveBlockResp.Error != "" {
-		t.Fatal(saveBlockResp.Error)
-	}
-
-	profResp, err := cli.CreateProof(uid, lastBlock.Uint64())
+	proof, err := cli.CreateProof(uid, lastBlock.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if profResp.Error != "" {
-		t.Fatal(profResp.Error)
-	}
-
-	initResp, err := cli.InitBlock()
+	err = cli.InitBlock()
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if initResp.Error != "" {
-		t.Fatal(initResp.Error)
 	}
 
 	respProof, err := cli.VerifyTxProof(uid, tx.Hash(),
-		lastBlock.Uint64(), profResp.Proof)
+		lastBlock.Uint64(), proof)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if respProof.Error != "" {
-		t.Fatal(respProof.Error)
-	}
-
-	if !respProof.Exists {
+	if !respProof {
 		t.Fatal("not exists")
 	}
 
 	return &txData{
 		rawTx:     buf.Bytes(),
-		proof:     profResp.Proof,
+		proof:     proof,
 		block:     lastBlock.Uint64(),
-		blockHash: buildResp.Hash,
+		blockHash: buildResp,
 	}
 }
 
@@ -453,13 +428,9 @@ func testAcceptTransaction(t *testing.T, direct bool) {
 		t.Fatal(err)
 	}
 
-	resp, err := cli.AcceptTransaction(buf.Bytes())
+	err = cli.AcceptTransaction(buf.Bytes())
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if resp.Error != "" {
-		t.Fatal("error")
 	}
 }
 
@@ -494,26 +465,17 @@ func testCreateProof(t *testing.T, direct bool) {
 
 	curBlock := s.smartPlasma.service.CurrentBlock()
 
-	resp, err := cli.CreateProof(one, one.Uint64())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if resp.Error == "" {
-		t.Fatal("error")
-	}
-
 	err = s.smartPlasma.service.SaveBlockToDB(one.Uint64(), curBlock)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	resp, err = cli.CreateProof(one, one.Uint64())
+	proof, err := cli.CreateProof(one, one.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if resp.Error != "" || len(resp.Proof) == 0 {
+	if len(proof) == 0 {
 		t.Fatal("error")
 	}
 }
@@ -530,13 +492,9 @@ func testAddCheckpoint(t *testing.T, direct bool) {
 	cli := testClient(t, s, direct, s.accounts[0])
 	defer cli.Close()
 
-	resp, err := cli.AddCheckpoint(one, two)
+	err := cli.AddCheckpoint(one, two)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if resp.Error != "" {
-		t.Fatal("error")
 	}
 }
 
@@ -566,26 +524,17 @@ func testCreateUIDStateProof(t *testing.T, direct bool) {
 
 	hash := s.smartPlasma.service.CurrentCheckpoint().Hash()
 
-	resp, err := cli.CreateUIDStateProof(one, hash)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if resp.Error == "" {
-		t.Fatal("error")
-	}
-
 	err = s.smartPlasma.service.SaveCheckpointToDB(curChpt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	resp, err = cli.CreateUIDStateProof(one, hash)
+	proof, err := cli.CreateUIDStateProof(one, hash)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if resp.Error != "" || len(resp.Proof) == 0 {
+	if len(proof) == 0 {
 		t.Fatal("error")
 	}
 }
@@ -994,13 +943,9 @@ func TestCheckpointChallenge(t *testing.T) {
 	tx2Obj := addTx(t, uid, tx2, cli)
 	tx3Obj := addTx(t, uid, tx3, cli)
 
-	addCheckpointResp, err := cli.AddCheckpoint(uid, three)
+	err := cli.AddCheckpoint(uid, three)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if addCheckpointResp.Error != "" {
-		t.Fatal(addCheckpointResp.Error)
 	}
 
 	buildCheckpointResp, err := cli.BuildCheckpoint()
@@ -1008,12 +953,8 @@ func TestCheckpointChallenge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if buildCheckpointResp.Error != "" {
-		t.Fatal(buildCheckpointResp.Error)
-	}
-
 	sendCheckpointHashTx, err := cli.SendCheckpointHash(
-		buildCheckpointResp.Hash)
+		buildCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1033,49 +974,30 @@ func TestCheckpointChallenge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if currentCheckpointResp.Error != "" {
-		t.Fatal(currentCheckpointResp.Error)
-	}
-
-	saveCheckpointToDBResp, err := cli.SaveCheckpointToDB(
-		currentCheckpointResp.Checkpoint)
+	err = cli.SaveCheckpointToDB(currentCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if saveCheckpointToDBResp.Error != "" {
-		t.Fatal(saveCheckpointToDBResp.Error)
-	}
-
-	createUIDStateProofResp, err := cli.CreateUIDStateProof(
-		uid, buildCheckpointResp.Hash)
+	createUIDStateProof, err := cli.CreateUIDStateProof(
+		uid, buildCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if createUIDStateProofResp.Error != "" {
-		t.Fatal(createUIDStateProofResp.Error)
-	}
-
-	resp, err := cli.VerifyCheckpointProof(uid, three,
-		buildCheckpointResp.Hash,
-		createUIDStateProofResp.Proof)
+	resp, err := cli.VerifyCheckpointProof(
+		uid, three, buildCheckpointResp, createUIDStateProof)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	if resp.Error != "" {
-		t.Fatal(resp.Error)
-	}
-
-	if !resp.Exists {
+	if !resp {
 		t.Fatal("uid not exist in a checkpoint")
 	}
 
-	challengeCheckpointTx, err := cli.ChallengeCheckpoint(uid,
-		buildCheckpointResp.Hash, createUIDStateProofResp.Proof,
-		three, tx2Obj.rawTx, tx2Obj.proof,
-		new(big.Int).SetUint64(tx2Obj.block))
+	challengeCheckpointTx, err := cli.ChallengeCheckpoint(
+		uid, buildCheckpointResp, createUIDStateProof, three,
+		tx2Obj.rawTx, tx2Obj.proof, new(big.Int).SetUint64(tx2Obj.block))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1085,7 +1007,7 @@ func TestCheckpointChallenge(t *testing.T) {
 	}
 
 	exist, err := cli.CheckpointIsChallenge(
-		uid, buildCheckpointResp.Hash, tx2Obj.rawTx)
+		uid, buildCheckpointResp, tx2Obj.rawTx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1095,7 +1017,7 @@ func TestCheckpointChallenge(t *testing.T) {
 	}
 
 	length, err := cli.CheckpointChallengesLength(
-		uid, buildCheckpointResp.Hash)
+		uid, buildCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1105,7 +1027,7 @@ func TestCheckpointChallenge(t *testing.T) {
 	}
 
 	challenge1, err := cli.GetCheckpointChallenge(
-		uid, buildCheckpointResp.Hash, zero)
+		uid, buildCheckpointResp, zero)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1119,7 +1041,7 @@ func TestCheckpointChallenge(t *testing.T) {
 	}
 
 	respTx, err := cli.RespondCheckpointChallenge(uid,
-		buildCheckpointResp.Hash, tx2Obj.rawTx,
+		buildCheckpointResp, tx2Obj.rawTx,
 		tx3Obj.rawTx, tx3Obj.proof,
 		new(big.Int).SetUint64(tx3Obj.block))
 	if err != nil {
@@ -1130,13 +1052,9 @@ func TestCheckpointChallenge(t *testing.T) {
 		t.Fatal("failed to start exit")
 	}
 
-	initCheckpointResp, err := cli.InitCheckpoint()
+	err = cli.InitCheckpoint()
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if initCheckpointResp.Error != "" {
-		t.Fatal(initCheckpointResp.Error)
 	}
 }
 
@@ -1159,13 +1077,9 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 	addTx(t, uid, tx1, cli)
 	tx2Obj := addTx(t, uid, tx2, cli)
 
-	addCheckpointResp, err := cli.AddCheckpoint(uid, two)
+	err := cli.AddCheckpoint(uid, two)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if addCheckpointResp.Error != "" {
-		t.Fatal(addCheckpointResp.Error)
 	}
 
 	buildCheckpointResp, err := cli.BuildCheckpoint()
@@ -1173,12 +1087,8 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if buildCheckpointResp.Error != "" {
-		t.Fatal(buildCheckpointResp.Error)
-	}
-
 	sendCheckpointHashTx, err := cli.SendCheckpointHash(
-		buildCheckpointResp.Hash)
+		buildCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1198,63 +1108,46 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if currentCheckpointResp.Error != "" {
-		t.Fatal(currentCheckpointResp.Error)
-	}
-
-	saveCheckpointToDBResp, err := cli.SaveCheckpointToDB(
-		currentCheckpointResp.Checkpoint)
+	err = cli.SaveCheckpointToDB(currentCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if saveCheckpointToDBResp.Error != "" {
-		t.Fatal(saveCheckpointToDBResp.Error)
-	}
-
-	createUIDStateProofResp, err := cli.CreateUIDStateProof(
-		uid, buildCheckpointResp.Hash)
+	createUIDStateProof, err := cli.CreateUIDStateProof(
+		uid, buildCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if createUIDStateProofResp.Error != "" {
-		t.Fatal(createUIDStateProofResp.Error)
-	}
-
-	verifyCheckpointProofResp, err := cli.VerifyCheckpointProof(uid,
-		two, buildCheckpointResp.Hash,
-		createUIDStateProofResp.Proof)
+	verifyCheckpointProofResp, err := cli.VerifyCheckpointProof(
+		uid, two, buildCheckpointResp, createUIDStateProof)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	if verifyCheckpointProofResp.Error != "" {
-		t.Fatal(verifyCheckpointProofResp.Error)
-	}
-
-	if !verifyCheckpointProofResp.Exists {
+	if !verifyCheckpointProofResp {
 		t.Fatal("uid not exist in a checkpoint")
 	}
 
 	// + 3 weeks
 	timeMachine(t, time.Duration(504*time.Hour), s.backend)
 
-	cli.InitCheckpoint()
+	err = cli.InitCheckpoint()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	cli.AddCheckpoint(uid, three)
+	err = cli.AddCheckpoint(uid, three)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	buildCheckpointResp2, err := cli.BuildCheckpoint()
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	if buildCheckpointResp2.Error != "" {
-		t.Fatal(buildCheckpointResp2.Error)
-	}
-
 	sendCheckpointHashTx2, err := cli.SendCheckpointHash(
-		buildCheckpointResp2.Hash)
+		buildCheckpointResp2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1274,34 +1167,20 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if currentCheckpointResp2.Error != "" {
-		t.Fatal(currentCheckpointResp2.Error)
-	}
-
-	saveCheckpointToDBResp, err = cli.SaveCheckpointToDB(
-		currentCheckpointResp2.Checkpoint)
+	err = cli.SaveCheckpointToDB(currentCheckpointResp2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if saveCheckpointToDBResp.Error != "" {
-		t.Fatal(saveCheckpointToDBResp.Error)
-	}
-
-	createUIDStateProofResp2, err := cli.CreateUIDStateProof(
-		uid, buildCheckpointResp2.Hash)
+	createUIDStateProof2, err := cli.CreateUIDStateProof(
+		uid, buildCheckpointResp2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if createUIDStateProofResp2.Error != "" {
-		t.Fatal(createUIDStateProofResp2.Error)
-	}
-
-	challengeCheckpointTx, err := cli.ChallengeCheckpoint(uid,
-		buildCheckpointResp2.Hash, createUIDStateProofResp2.Proof,
-		three, tx2Obj.rawTx, tx2Obj.proof,
-		new(big.Int).SetUint64(tx2Obj.block))
+	challengeCheckpointTx, err := cli.ChallengeCheckpoint(
+		uid, buildCheckpointResp2, createUIDStateProof2, three,
+		tx2Obj.rawTx, tx2Obj.proof, new(big.Int).SetUint64(tx2Obj.block))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1310,10 +1189,9 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal("failed to start exit")
 	}
 
-	respTx, err := cli.RespondWithHistoricalCheckpoint(uid,
-		buildCheckpointResp2.Hash,
-		createUIDStateProofResp2.Proof, buildCheckpointResp.Hash,
-		createUIDStateProofResp.Proof, tx2Obj.rawTx,
+	respTx, err := cli.RespondWithHistoricalCheckpoint(
+		uid, buildCheckpointResp2, createUIDStateProof2,
+		buildCheckpointResp, createUIDStateProof, tx2Obj.rawTx,
 		new(big.Int).SetUint64(tx2Obj.block))
 	if err != nil {
 		t.Fatal(err)

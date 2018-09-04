@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/SmartMeshFoundation/Spectrum"
 	"github.com/SmartMeshFoundation/Spectrum/common"
@@ -458,7 +459,10 @@ func (api *SmartPlasma) CreateUIDStateProof(req *CreateUIDStateProofReq,
 // PendingCodeAt returns the code of the given Account in the pending state.
 func (api *SmartPlasma) PendingCodeAt(req *PendingCodeAtReq,
 	resp *PendingCodeAtResp) error {
-	code, err := api.service.PendingCodeAt(context.Background(), req.Account)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	code, err := api.service.PendingCodeAt(ctx, req.Account)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
@@ -471,7 +475,10 @@ func (api *SmartPlasma) PendingCodeAt(req *PendingCodeAtReq,
 // associated with an Account.
 func (api *SmartPlasma) PendingNonceAt(req *PendingNonceAtReq,
 	resp *PendingNonceAtResp) error {
-	nonce, err := api.service.PendingNonceAt(context.Background(), req.Account)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	nonce, err := api.service.PendingNonceAt(ctx, req.Account)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
@@ -484,7 +491,10 @@ func (api *SmartPlasma) PendingNonceAt(req *PendingNonceAtReq,
 // to allow a timely execution of a transaction.
 func (api *SmartPlasma) SuggestGasPrice(req *SuggestGasPriceReq,
 	resp *SuggestGasPriceResp) error {
-	price, err := api.service.SuggestGasPrice(context.Background())
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	price, err := api.service.SuggestGasPrice(ctx)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
@@ -500,7 +510,10 @@ func (api *SmartPlasma) SuggestGasPrice(req *SuggestGasPriceReq,
 // for setting a reasonable default.
 func (api *SmartPlasma) EstimateGas(req *EstimateGasReq,
 	resp *EstimateGasResp) error {
-	gas, err := api.service.EstimateGas(context.Background(), req.Call)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	gas, err := api.service.EstimateGas(ctx, req.Call)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
@@ -520,7 +533,10 @@ func (api *SmartPlasma) WaitMined(req *WaitMinedReq,
 		return nil
 	}
 
-	tr, err := api.service.Mine(context.Background(), tx)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	tr, err := api.service.Mine(ctx, tx)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
@@ -539,7 +555,11 @@ func (api *SmartPlasma) WaitMined(req *WaitMinedReq,
 // Deposit invokes deposit method on Mediator contract from a specific account.
 // Function received raw signed Ethereum transaction.
 func (api *SmartPlasma) Deposit(req *RawReq, resp *RawResp) error {
-	if err := api.service.MediatorTransaction(req.RawTx); err != nil {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	if err := api.service.MediatorTransaction(
+		ctx, req.RawTx); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -549,7 +569,11 @@ func (api *SmartPlasma) Deposit(req *RawReq, resp *RawResp) error {
 // on Mediator contract from a specific account.
 // Function received raw signed Ethereum transaction.
 func (api *SmartPlasma) Withdraw(req *RawReq, resp *RawResp) error {
-	if err := api.service.MediatorTransaction(req.RawTx); err != nil {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	if err := api.service.MediatorTransaction(
+		ctx, req.RawTx); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -559,7 +583,11 @@ func (api *SmartPlasma) Withdraw(req *RawReq, resp *RawResp) error {
 // on RootChain contract from a specific account.
 // Function received raw signed Ethereum transaction.
 func (api *SmartPlasma) StartExit(req *RawReq, resp *RawResp) error {
-	if err := api.service.RootChainTransaction(req.RawTx); err != nil {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	if err := api.service.RootChainTransaction(
+		ctx, req.RawTx); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -569,7 +597,11 @@ func (api *SmartPlasma) StartExit(req *RawReq, resp *RawResp) error {
 // on RootChain contract from a specific account.
 // Function received raw signed Ethereum transaction.
 func (api *SmartPlasma) ChallengeExit(req *RawReq, resp *RawResp) error {
-	if err := api.service.RootChainTransaction(req.RawTx); err != nil {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	if err := api.service.RootChainTransaction(
+		ctx, req.RawTx); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -580,7 +612,11 @@ func (api *SmartPlasma) ChallengeExit(req *RawReq, resp *RawResp) error {
 // Function received raw signed Ethereum transaction.
 func (api *SmartPlasma) ChallengeCheckpoint(req *RawReq,
 	resp *RawResp) error {
-	if err := api.service.RootChainTransaction(req.RawTx); err != nil {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	if err := api.service.RootChainTransaction(
+		ctx, req.RawTx); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -591,7 +627,11 @@ func (api *SmartPlasma) ChallengeCheckpoint(req *RawReq,
 // Function received raw signed Ethereum transaction.
 func (api *SmartPlasma) RespondChallengeExit(req *RawReq,
 	resp *RawResp) error {
-	if err := api.service.RootChainTransaction(req.RawTx); err != nil {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	if err := api.service.RootChainTransaction(
+		ctx, req.RawTx); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -602,7 +642,11 @@ func (api *SmartPlasma) RespondChallengeExit(req *RawReq,
 // Function received raw signed Ethereum transaction.
 func (api *SmartPlasma) RespondCheckpointChallenge(req *RawReq,
 	resp *RawResp) error {
-	if err := api.service.RootChainTransaction(req.RawTx); err != nil {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	if err := api.service.RootChainTransaction(
+		ctx, req.RawTx); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -613,7 +657,11 @@ func (api *SmartPlasma) RespondCheckpointChallenge(req *RawReq,
 // Function received raw signed Ethereum transaction.
 func (api *SmartPlasma) RespondWithHistoricalCheckpoint(req *RawReq,
 	resp *RawResp) error {
-	if err := api.service.RootChainTransaction(req.RawTx); err != nil {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	if err := api.service.RootChainTransaction(
+		ctx, req.RawTx); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
@@ -644,7 +692,10 @@ func (api *SmartPlasma) BuildCheckpoint(req *BuildCheckpointReq,
 // SendBlockHash sends hash of transactions block to RootChain contract.
 func (api *SmartPlasma) SendBlockHash(req *SendBlockHashReq,
 	resp *SendBlockHashResp) error {
-	tx, err := api.service.SendBlockHash(context.Background(), req.Hash)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	tx, err := api.service.SendBlockHash(ctx, req.Hash)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
@@ -660,7 +711,10 @@ func (api *SmartPlasma) SendBlockHash(req *SendBlockHashReq,
 // SendCheckpointHash sends hash of checkpoints block to RootChain contract.
 func (api *SmartPlasma) SendCheckpointHash(req *SendCheckpointHashReq,
 	resp *SendCheckpointHashResp) error {
-	tx, err := api.service.SendChptHash(context.Background(), req.Hash)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	tx, err := api.service.SendChptHash(ctx, req.Hash)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
@@ -676,7 +730,10 @@ func (api *SmartPlasma) SendCheckpointHash(req *SendCheckpointHashReq,
 // LastBlockNumber gets number by transactions block from RootChain contract.
 func (api *SmartPlasma) LastBlockNumber(req *LastBlockNumberReq,
 	resp *LastBlockNumberResp) error {
-	number, err := api.service.LastBlockNumber()
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	number, err := api.service.LastBlockNumber(ctx)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -777,7 +834,11 @@ func (api *SmartPlasma) VerifyTxProof(req *VerifyTxProofReq,
 // VerifyCheckpointProof checks whether the UID is included in the block.
 func (api *SmartPlasma) VerifyCheckpointProof(req *VerifyCheckpointProofReq,
 	resp *VerifyCheckpointProofResp) error {
-	exists, err := api.service.IsValidCheckpoint(req.UID, req.Number,
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	exists, err := api.service.IsValidCheckpoint(
+		ctx, req.UID, req.Number,
 		req.Checkpoint, req.Proof)
 	if err != nil {
 		resp.Error = err.Error()
@@ -789,7 +850,10 @@ func (api *SmartPlasma) VerifyCheckpointProof(req *VerifyCheckpointProofReq,
 // DepositCount returns a deposit counter.
 func (api *SmartPlasma) DepositCount(
 	req *DepositCountReq, resp *DepositCountResp) error {
-	count, err := api.service.DepositCount()
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	count, err := api.service.DepositCount(ctx)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -800,7 +864,10 @@ func (api *SmartPlasma) DepositCount(
 // ChallengePeriod returns a period for challenging in seconds.
 func (api *SmartPlasma) ChallengePeriod(
 	req *ChallengePeriodReq, resp *ChallengePeriodResp) error {
-	secs, err := api.service.ChallengePeriod()
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	secs, err := api.service.ChallengePeriod(ctx)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -810,7 +877,10 @@ func (api *SmartPlasma) ChallengePeriod(
 
 // Operator returns a Plasma Cash operator address.
 func (api *SmartPlasma) Operator(req *OperatorReq, resp *OperatorResp) error {
-	operator, err := api.service.Operator()
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	operator, err := api.service.Operator(ctx)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -821,7 +891,10 @@ func (api *SmartPlasma) Operator(req *OperatorReq, resp *OperatorResp) error {
 // ChildChain returns a block hash by a block number.
 func (api *SmartPlasma) ChildChain(
 	req *ChildChainReq, resp *ChildChainResp) error {
-	hash, err := api.service.ChildChain(req.BlockNumber)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	hash, err := api.service.ChildChain(ctx, req.BlockNumber)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -831,7 +904,10 @@ func (api *SmartPlasma) ChildChain(
 
 // Exits returns a incomplete exit by UID.
 func (api *SmartPlasma) Exits(req *ExitsReq, resp *ExitsResp) error {
-	result, err := api.service.Exits(req.UID)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	result, err := api.service.Exits(ctx, req.UID)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -847,7 +923,10 @@ func (api *SmartPlasma) Exits(req *ExitsReq, resp *ExitsResp) error {
 // Wallet returns a deposit amount.
 func (api *SmartPlasma) Wallet(
 	req *WalletReq, resp *WalletResp) error {
-	amount, err := api.service.Wallet(req.UID)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	amount, err := api.service.Wallet(ctx, req.UID)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -859,7 +938,11 @@ func (api *SmartPlasma) Wallet(
 // that a exit is blocked by a transaction of challenge.
 func (api *SmartPlasma) ChallengeExists(
 	req *ChallengeExistsReq, resp *ChallengeExistsResp) error {
-	exists, err := api.service.ChallengeExists(req.UID, req.ChallengeTx)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	exists, err := api.service.ChallengeExists(
+		ctx, req.UID, req.ChallengeTx)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -871,7 +954,10 @@ func (api *SmartPlasma) ChallengeExists(
 // that a checkpoint is blocked by a transaction of challenge.
 func (api *SmartPlasma) CheckpointIsChallenge(
 	req *CheckpointIsChallengeReq, resp *CheckpointIsChallengeResp) error {
-	exists, err := api.service.CheckpointIsChallenge(
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	exists, err := api.service.CheckpointIsChallenge(ctx,
 		req.UID, req.Checkpoint, req.ChallengeTx)
 	if err != nil {
 		resp.Error = err.Error()
@@ -883,7 +969,10 @@ func (api *SmartPlasma) CheckpointIsChallenge(
 // ChallengesLength returns number of disputes on withdrawal of uid.
 func (api *SmartPlasma) ChallengesLength(
 	req *ChallengesLengthReq, resp *ChallengesLengthResp) error {
-	length, err := api.service.ChallengesLength(req.UID)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	length, err := api.service.ChallengesLength(ctx, req.UID)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -896,8 +985,11 @@ func (api *SmartPlasma) ChallengesLength(
 func (api *SmartPlasma) CheckpointChallengesLength(
 	req *CheckpointChallengesLengthReq,
 	resp *CheckpointChallengesLengthResp) error {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
 	length, err := api.service.CheckpointChallengesLength(
-		req.UID, req.Checkpoint)
+		ctx, req.UID, req.Checkpoint)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -908,7 +1000,11 @@ func (api *SmartPlasma) CheckpointChallengesLength(
 // GetChallenge returns exit challenge transaction by uid and index.
 func (api *SmartPlasma) GetChallenge(
 	req *GetChallengeReq, resp *GetChallengeResp) error {
-	result, err := api.service.GetChallenge(req.UID, req.Index)
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	result, err := api.service.GetChallenge(
+		ctx, req.UID, req.Index)
 	if err != nil {
 		resp.Error = err.Error()
 	}
@@ -921,12 +1017,20 @@ func (api *SmartPlasma) GetChallenge(
 // by checkpoint merkle root, uid and index.
 func (api *SmartPlasma) GetCheckpointChallenge(
 	req *GetCheckpointChallengeReq, resp *GetCheckpointChallengeResp) error {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
 	result, err := api.service.GetCheckpointChallenge(
-		req.UID, req.Checkpoint, req.Index)
+		ctx, req.UID, req.Checkpoint, req.Index)
 	if err != nil {
 		resp.Error = err.Error()
 	}
 	resp.ChallengeTx = result.ChallengeTx
 	resp.ChallengeBlock = result.ChallengeBlock
 	return nil
+}
+
+func (api *SmartPlasma) newContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(
+		context.Background(), time.Duration(api.timeout)*time.Second)
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 )
 
@@ -24,7 +25,7 @@ func TestMediatorTransaction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = i.service.MediatorTransaction(rawTx)
+	err = i.service.MediatorTransaction(context.Background(), rawTx)
 	if err != nil {
 		t.Fatal(err)
 	}

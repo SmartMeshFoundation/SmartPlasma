@@ -58,3 +58,10 @@ func GenerateNextUID(session *RootChainSession,
 
 	return new(big.Int).SetBytes(uidData), nil
 }
+
+// CopySession copies root chain session.
+func CopySession(session *RootChainSession) *RootChainSession {
+	newSession := &RootChainSession{}
+	*newSession = *session
+	return newSession
+}

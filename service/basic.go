@@ -27,12 +27,13 @@ func (s *Service) mineTx(ctx context.Context, tx *types.Transaction) error {
 // MediatorTransaction decode and sends Ethereum transaction
 // to mediator contract.
 // methods: deposit, withdraw.
-func (s *Service) MediatorTransaction(rawTx []byte) error {
+func (s *Service) MediatorTransaction(
+	ctx context.Context, rawTx []byte) error {
 	tx, err := s.mediatorContractWrapper.UnmarshalTransaction(rawTx)
 	if err != nil {
 		return err
 	}
-	return s.transact(tx)
+	return s.transact(ctx, tx)
 }
 
 // RootChainTransaction decode and sends Ethereum transaction
@@ -40,12 +41,13 @@ func (s *Service) MediatorTransaction(rawTx []byte) error {
 // methods: startExit, challengeExit, challengeCheckpoint,
 // respondChallengeExit, respondCheckpointChallenge,
 // respondWithHistoricalCheckpoint.
-func (s *Service) RootChainTransaction(rawTx []byte) error {
+func (s *Service) RootChainTransaction(
+	ctx context.Context, rawTx []byte) error {
 	tx, err := s.rootChainContractWrapper.UnmarshalTransaction(rawTx)
 	if err != nil {
 		return err
 	}
-	return s.transact(tx)
+	return s.transact(ctx, tx)
 }
 
 func buildBlockFromBytes(blk block.Block, raw []byte) error {
@@ -58,8 +60,8 @@ func buildBlockFromBytes(blk block.Block, raw []byte) error {
 	return err
 }
 
-func (s *Service) transact(tx *types.Transaction) error {
-	return s.backend.Connect().SendTransaction(context.Background(), tx)
+func (s *Service) transact(ctx context.Context, tx *types.Transaction) error {
+	return s.backend.Connect().SendTransaction(ctx, tx)
 }
 
 // PendingCodeAt returns the code of the given account in the pending state.

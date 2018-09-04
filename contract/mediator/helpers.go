@@ -66,3 +66,10 @@ func Deploy(account *bind.TransactOpts,
 
 	return addr, contract, nil
 }
+
+// CopySession copies mediator session.
+func CopySession(session *MediatorSession) *MediatorSession {
+	newSession := &MediatorSession{}
+	*newSession = *session
+	return newSession
+}
