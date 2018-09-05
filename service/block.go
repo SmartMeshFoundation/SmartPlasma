@@ -10,6 +10,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
+	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
@@ -74,12 +75,17 @@ func (s *Service) SaveBlockToDB(number uint64,
 // SendBlockHash sends a Plasma block hash to the blockchain.
 func (s *Service) SendBlockHash(
 	ctx context.Context, hash common.Hash) (*types.Transaction, error) {
-	return s.session.NewBlock(hash)
+	session := rootchain.CopySession(s.session)
+	session.TransactOpts.Context = ctx
+
+	return session.NewBlock(hash)
 }
 
 // LastBlockNumber gets last block number from blockchain.
-func (s *Service) LastBlockNumber() (*big.Int, error) {
-	return s.session.BlockNumber()
+func (s *Service) LastBlockNumber(ctx context.Context) (*big.Int, error) {
+	session := rootchain.CopySession(s.session)
+	session.CallOpts.Context = ctx
+	return session.BlockNumber()
 }
 
 // CurrentBlock returns current Plasma block.

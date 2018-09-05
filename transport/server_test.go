@@ -244,7 +244,7 @@ func BenchmarkAcceptTransaction(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		_, err = clients[0].AcceptTransaction(buf.Bytes())
+		err = clients[0].AcceptTransaction(buf.Bytes())
 		if err != nil {
 			b.Fatal(err)
 		}

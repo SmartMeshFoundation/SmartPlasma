@@ -17,8 +17,15 @@ func (c *Client) PendingCodeAt(
 		Account: account,
 	}
 	var resp PendingCodeAtResp
-	if err := c.connect.Call(PendingCodeAtMethod, req, &resp); err != nil {
-		return nil, err
+	call := c.connect.Go(PendingCodeAtMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return nil, replay.Error
+		}
+	case <-ctx.Done():
+		return nil, errors.New("timeout")
 	}
 
 	if resp.Error != "" {
@@ -36,8 +43,15 @@ func (c *Client) PendingNonceAt(
 		Account: account,
 	}
 	var resp PendingNonceAtResp
-	if err := c.connect.Call(PendingNonceAtMethod, req, &resp); err != nil {
-		return 0, err
+	call := c.connect.Go(PendingNonceAtMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return 0, replay.Error
+		}
+	case <-ctx.Done():
+		return 0, errors.New("timeout")
 	}
 
 	if resp.Error != "" {
@@ -53,8 +67,15 @@ func (c *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	req := &SuggestGasPriceReq{}
 
 	var resp SuggestGasPriceResp
-	if err := c.connect.Call(SuggestGasPriceMethod, req, &resp); err != nil {
-		return nil, err
+	call := c.connect.Go(SuggestGasPriceMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return nil, replay.Error
+		}
+	case <-ctx.Done():
+		return nil, errors.New("timeout")
 	}
 
 	if resp.Error != "" {
@@ -76,8 +97,15 @@ func (c *Client) EstimateGas(
 	}
 
 	var resp EstimateGasResp
-	if err := c.connect.Call(EstimateGasMethod, req, &resp); err != nil {
-		return nil, err
+	call2 := c.connect.Go(EstimateGasMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call2.Done:
+		if replay.Error != nil {
+			return nil, replay.Error
+		}
+	case <-ctx.Done():
+		return nil, errors.New("timeout")
 	}
 
 	if resp.Error != "" {

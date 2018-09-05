@@ -47,7 +47,7 @@ func TestCreateProof(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	blockNum, err := i.service.LastBlockNumber()
+	blockNum, err := i.service.LastBlockNumber(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -78,7 +78,8 @@ func TestCreateUidStateProof(t *testing.T) {
 		t.Fatal("empty proof")
 	}
 
-	valid, err := i.service.IsValidCheckpoint(one, two, chpt.Hash(), proof)
+	valid, err := i.service.IsValidCheckpoint(
+		context.Background(), one, two, chpt.Hash(), proof)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +88,8 @@ func TestCreateUidStateProof(t *testing.T) {
 		t.Fatal("checkpoint invalid")
 	}
 
-	valid, err = i.service.IsValidCheckpoint(one, three, chpt.Hash(), proof)
+	valid, err = i.service.IsValidCheckpoint(
+		context.Background(), one, three, chpt.Hash(), proof)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +107,8 @@ func TestCreateUidStateProof(t *testing.T) {
 		t.Fatal("empty proof")
 	}
 
-	valid, err = i.service.IsValidCheckpoint(two, two, chpt.Hash(), proof2)
+	valid, err = i.service.IsValidCheckpoint(
+		context.Background(), two, two, chpt.Hash(), proof2)
 	if err != nil {
 		t.Fatal(err)
 	}

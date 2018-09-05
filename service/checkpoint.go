@@ -8,6 +8,7 @@ import (
 	"github.com/SmartMeshFoundation/Spectrum/core/types"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
+	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
@@ -67,14 +68,20 @@ func (s *Service) SaveCheckpointToDB(chpt checkpoints.CheckpointBlock) error {
 // SendChptHash sends a Checkpoint block hash to the blockchain.
 func (s *Service) SendChptHash(
 	ctx context.Context, hash common.Hash) (*types.Transaction, error) {
-	return s.session.NewCheckpoint(hash)
+	session := rootchain.CopySession(s.session)
+	session.TransactOpts.Context = ctx
+	return session.NewCheckpoint(hash)
 }
 
 // IsValidCheckpoint returns true if the uid is fixed at the checkpoint
 // and the number is correct.
-func (s *Service) IsValidCheckpoint(uid *big.Int, number *big.Int,
-	checkpoint common.Hash, proof []byte) (bool, error) {
-	challenges, err := s.session.CheckpointChallengesLength(uid, checkpoint)
+func (s *Service) IsValidCheckpoint(ctx context.Context,
+	uid *big.Int, number *big.Int, checkpoint common.Hash,
+	proof []byte) (bool, error) {
+	session := rootchain.CopySession(s.session)
+	session.CallOpts.Context = ctx
+
+	challenges, err := session.CheckpointChallengesLength(uid, checkpoint)
 	if err != nil {
 		return false, err
 	}

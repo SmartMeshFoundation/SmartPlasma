@@ -346,23 +346,15 @@ func main() {
 	}
 
 	// send Plasma Cash transaction to server
-	respAcceptTx1, err := cli1.AcceptTransaction(buf.Bytes())
+	err = cli1.AcceptTransaction(buf.Bytes())
 	if err != nil {
 		panic(err)
-	}
-
-	if respAcceptTx1.Error != "" {
-		panic(respAcceptTx1.Error)
 	}
 
 	// build current Plasma Cash block
 	respBuildBlock1, err := cli1.BuildBlock()
 	if err != nil {
 		panic(err)
-	}
-
-	if respBuildBlock1.Error != "" {
-		panic(respBuildBlock1.Error)
 	}
 
 	// get last Plasma Cash block number from root chain
@@ -376,23 +368,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if rawBlock1.Error != "" {
-		panic(rawBlock1.Error)
-	}
 
 	// save current block to database
-	saveBlock1Resp, err := cli1.SaveBlockToDB(lastBlock.Uint64()+1,
-		rawBlock1.Block)
+	err = cli1.SaveBlockToDB(lastBlock.Uint64()+1, rawBlock1)
 	if err != nil {
 		panic(err)
 	}
 
-	if saveBlock1Resp.Error != "" {
-		panic(saveBlock1Resp.Error)
-	}
-
 	// Operator publishes hash for block 1
-	sendBlock1HashTx, err := cli0.SendBlockHash(respBuildBlock1.Hash)
+	sendBlock1HashTx, err := cli0.SendBlockHash(respBuildBlock1)
 	if err != nil {
 		panic(err)
 	}
@@ -407,33 +391,22 @@ func main() {
 	}
 
 	// create proof for transaction #1 on Plasma Cash block #1.
-	proof1Resp, err := cli1.CreateProof(uid, 1)
+	proof1, err := cli1.CreateProof(uid, 1)
 	if err != nil {
 		panic(err)
-	}
-
-	if proof1Resp.Error != "" {
-		panic(proof1Resp.Error)
 	}
 
 	// verify proof for transaction #1 on Plasma Cash block #1
 	verifyTx1Resp, err := cli1.VerifyTxProof(
-		uid, tx1.Hash(), 1, proof1Resp.Proof)
+		uid, tx1.Hash(), 1, proof1)
 
-	if verifyTx1Resp.Error != "" {
-		panic(verifyTx1Resp.Error)
-	}
-
-	if !verifyTx1Resp.Exists {
+	if !verifyTx1Resp {
 		panic("transaction #1 not verified")
 	}
 
-	initBlock2Resp, err := cli1.InitBlock()
+	err = cli1.InitBlock()
 	if err != nil {
 		panic(err)
-	}
-	if initBlock2Resp.Error != "" {
-		panic(initBlock2Resp.Error)
 	}
 
 	// create Plasma Cash transaction #2
@@ -454,23 +427,15 @@ func main() {
 	}
 
 	// send Plasma Cash transaction #2 to server
-	respAcceptTx2, err := cli1.AcceptTransaction(buf.Bytes())
+	err = cli1.AcceptTransaction(buf.Bytes())
 	if err != nil {
 		panic(err)
-	}
-
-	if respAcceptTx2.Error != "" {
-		panic(respAcceptTx1.Error)
 	}
 
 	// build current Plasma Cash block
 	respBuildBlock2, err := cli1.BuildBlock()
 	if err != nil {
 		panic(err)
-	}
-
-	if respBuildBlock2.Error != "" {
-		panic(respBuildBlock1.Error)
 	}
 
 	// get last Plasma Cash block number from root chain
@@ -484,23 +449,15 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if rawBlock2.Error != "" {
-		panic(rawBlock1.Error)
-	}
 
 	// save current block to database
-	saveBlock2Resp, err := cli1.SaveBlockToDB(lastBlock.Uint64()+1,
-		rawBlock1.Block)
+	err = cli1.SaveBlockToDB(lastBlock.Uint64()+1, rawBlock2)
 	if err != nil {
 		panic(err)
 	}
 
-	if saveBlock2Resp.Error != "" {
-		panic(saveBlock1Resp.Error)
-	}
-
 	// Operator publishes hash for block 2
-	sendBlock2HashTx, err := cli0.SendBlockHash(respBuildBlock2.Hash)
+	sendBlock2HashTx, err := cli0.SendBlockHash(respBuildBlock2)
 	if err != nil {
 		panic(err)
 	}
@@ -515,24 +472,16 @@ func main() {
 	}
 
 	// create proof for transaction #1 on Plasma Cash block #1.
-	proof2Resp, err := cli1.CreateProof(uid, 2)
+	proof2, err := cli1.CreateProof(uid, 2)
 	if err != nil {
 		panic(err)
 	}
 
-	if proof2Resp.Error != "" {
-		panic(proof1Resp.Error)
-	}
-
 	// verify proof for transaction #1 on Plasma Cash block #1
 	verifyTx2Resp, err := cli1.VerifyTxProof(
-		uid, tx2.Hash(), 2, proof2Resp.Proof)
+		uid, tx2.Hash(), 2, proof2)
 
-	if verifyTx2Resp.Error != "" {
-		panic(verifyTx2Resp.Error)
-	}
-
-	if !verifyTx2Resp.Exists {
+	if !verifyTx2Resp {
 		panic("transaction #1 not verified")
 	}
 
@@ -550,8 +499,8 @@ func main() {
 
 	// start exit
 	exitTx, err := cli2.StartExit(
-		bufTx1.Bytes(), proof1Resp.Proof, big.NewInt(1),
-		bufTx2.Bytes(), proof2Resp.Proof, big.NewInt(2))
+		bufTx1.Bytes(), proof1, big.NewInt(1),
+		bufTx2.Bytes(), proof2, big.NewInt(2))
 	if err != nil {
 		panic(err)
 	}
@@ -566,8 +515,8 @@ func main() {
 
 	// attempt to withdraw
 	_, err = cli2.Withdraw(
-		bufTx1.Bytes(), proof1Resp.Proof, big.NewInt(1),
-		bufTx2.Bytes(), proof2Resp.Proof, big.NewInt(2))
+		bufTx1.Bytes(), proof1, big.NewInt(1),
+		bufTx2.Bytes(), proof2, big.NewInt(2))
 	if err == nil {
 		panic("the period of challenge has not yet been completed")
 	}
@@ -590,8 +539,8 @@ func main() {
 
 	// withdraw
 	withdrawTx, err := cli2.Withdraw(
-		bufTx1.Bytes(), proof1Resp.Proof, big.NewInt(1),
-		bufTx2.Bytes(), proof2Resp.Proof, big.NewInt(2))
+		bufTx1.Bytes(), proof1, big.NewInt(1),
+		bufTx2.Bytes(), proof2, big.NewInt(2))
 	if err != nil {
 		panic(err)
 	}
@@ -607,8 +556,8 @@ func main() {
 
 	// attempt to withdraw
 	_, err = cli2.Withdraw(
-		bufTx1.Bytes(), proof1Resp.Proof, big.NewInt(1),
-		bufTx2.Bytes(), proof2Resp.Proof, big.NewInt(2))
+		bufTx1.Bytes(), proof1, big.NewInt(1),
+		bufTx2.Bytes(), proof2, big.NewInt(2))
 	if err == nil {
 		panic("can not withdraw several times")
 	}
