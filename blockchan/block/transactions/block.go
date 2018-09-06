@@ -59,7 +59,6 @@ func (bl *TrBlock) AddTx(tx *transaction.Transaction) error {
 	}
 
 	bl.uIDs = append(bl.uIDs, tx.UID().String())
-	sort.Strings(bl.uIDs)
 	bl.txs[tx.UID().String()] = tx
 	return nil
 }
@@ -79,9 +78,7 @@ func (bl *TrBlock) Build() (common.Hash, error) {
 	defer bl.mtx.Unlock()
 
 	if !sort.StringsAreSorted(bl.uIDs) {
-		bl.mtx.Lock()
 		sort.Strings(bl.uIDs)
-		bl.mtx.Unlock()
 	}
 
 	leaves := make(map[string]common.Hash)

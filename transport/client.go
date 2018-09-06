@@ -73,6 +73,9 @@ const (
 	CheckpointChallengesLengthMethod = "SmartPlasma.CheckpointChallengesLength"
 	GetChallengeMethod               = "SmartPlasma.GetChallenge"
 	GetCheckpointChallengeMethod     = "SmartPlasma.GetCheckpointChallenge"
+
+	// additional methods
+	SaveCurrentBlockMethod = "SmartPlasma.SaveCurrentBlock"
 )
 
 // Client is RPC client for PlasmaCash.
@@ -1515,4 +1518,31 @@ func (c *Client) GetCheckpointChallenge(uid *big.Int, checkpoint common.Hash,
 	}
 
 	return resp, err
+}
+
+// SaveBlockToDB saves current transactions block in database on server side.
+func (c *Client) SaveCurrentBlock(number uint64) error {
+	ctx, cancel := c.newContext()
+	defer cancel()
+
+	req := &SaveCurrentBlockReq{
+		Number: number,
+	}
+
+	var resp *SaveCurrentBlockResp
+	call := c.connect.Go(SaveCurrentBlockMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return replay.Error
+		}
+	case <-ctx.Done():
+		return errors.New("timeout")
+	}
+
+	if resp.Error != "" {
+		return errors.New(resp.Error)
+	}
+	return nil
 }
