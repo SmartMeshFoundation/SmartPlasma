@@ -49,6 +49,23 @@ func testTX(t *testing.T, prevBlock *big.Int, newOwner common.Address,
 	return tx
 }
 
+func testTXBench(b *testing.B, prevBlock *big.Int, newOwner common.Address,
+	key *ecdsa.PrivateKey, nonce *big.Int) *transaction.Transaction {
+	randKey := account.GenKey()
+
+	unsignedTx, err := transaction.NewTransaction(
+		prevBlock, randKey.X, randKey.Y, nonce, newOwner)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	tx, err := unsignedTx.SignTx(key)
+	if err != nil {
+		b.Fatal(err)
+	}
+	return tx
+}
+
 func generateTXs(t *testing.T, number int,
 	prevBlock int) (txs []*transaction.Transaction) {
 	for i := 0; i < number; i++ {
@@ -56,6 +73,20 @@ func generateTXs(t *testing.T, number int,
 		newOwner := testAcc()
 
 		tx := testTX(t, big.NewInt(int64(prevBlock)),
+			newOwner.account.From, owner.key, big.NewInt(0))
+
+		txs = append(txs, tx)
+	}
+	return txs
+}
+
+func generateTXsBench(b *testing.B, number int,
+	prevBlock int) (txs []*transaction.Transaction) {
+	for i := 0; i < number; i++ {
+		owner := testAcc()
+		newOwner := testAcc()
+
+		tx := testTXBench(b, big.NewInt(int64(prevBlock)),
 			newOwner.account.From, owner.key, big.NewInt(0))
 
 		txs = append(txs, tx)
@@ -164,5 +195,20 @@ func TestBlockAddExistsTx(t *testing.T) {
 
 	if err := bl.AddTx(txs[0]); err == nil {
 		t.Fatal("the transaction already exists in the block")
+	}
+}
+
+func BenchmarkTrBlock(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		txs := generateTXsBench(b, 10000, testPrevBlock)
+		bl := NewTxBlock()
+		for _, tx := range txs {
+			if err := bl.AddTx(tx); err != nil {
+				b.Fatal(err)
+			}
+		}
+
+		b.ResetTimer()
+		bl.Build()
 	}
 }

@@ -56,7 +56,6 @@ func (bl *ChptBlock) AddCheckpoint(uid, number *big.Int) error {
 	}
 
 	bl.uIDs = append(bl.uIDs, uid.String())
-	sort.Strings(bl.uIDs)
 	bl.numbers[uid.String()] = common.BigToHash(number)
 	return nil
 }
@@ -76,9 +75,7 @@ func (bl *ChptBlock) Build() (common.Hash, error) {
 	defer bl.mtx.Unlock()
 
 	if !sort.StringsAreSorted(bl.uIDs) {
-		bl.mtx.Lock()
 		sort.Strings(bl.uIDs)
-		bl.mtx.Unlock()
 	}
 
 	tree, err := merkle.NewTree(bl.numbers, merkle.Depth257)

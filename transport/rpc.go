@@ -407,6 +407,16 @@ type GetCheckpointChallengeResp struct {
 	Error          string
 }
 
+// SaveCurrentBlockReq is request for SaveCurrentBlock method.
+type SaveCurrentBlockReq struct {
+	Number uint64
+}
+
+// SaveCurrentBlockResp is response for SaveCurrentBlock method.
+type SaveCurrentBlockResp struct {
+	Error string
+}
+
 // AcceptTransaction accepts a raw transaction and returns a response.
 func (api *SmartPlasma) AcceptTransaction(req *AcceptTransactionReq,
 	resp *AcceptTransactionResp) error {
@@ -1033,4 +1043,14 @@ func (api *SmartPlasma) GetCheckpointChallenge(
 func (api *SmartPlasma) newContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(
 		context.Background(), time.Duration(api.timeout)*time.Second)
+}
+
+// CurrentCheckpoint saves current block to database.
+func (api *SmartPlasma) SaveCurrentBlock(req *SaveCurrentBlockReq,
+	resp *SaveCurrentBlockResp) error {
+	err := api.service.SaveBlockToDB(req.Number, api.service.CurrentBlock())
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	return nil
 }
