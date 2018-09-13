@@ -46,7 +46,7 @@ var (
 	cycles      = 3
 )
 
-type User struct {
+type user struct {
 	acc      *account.PlasmaTransactOpts
 	uids     map[string]uint64
 	incoming map[string]uint64
@@ -55,7 +55,7 @@ type User struct {
 
 type environment struct {
 	dir              string
-	accounts         []*User
+	accounts         []*user
 	mediatorAddress  common.Address
 	rootChainAddress common.Address
 	tokenAddress     common.Address
@@ -186,7 +186,7 @@ func newTestEnvironment() *environment {
 	tOwnerSession := tokenSession(owner.TransactOpts,
 		tAddr, server)
 
-	var users []*User
+	var users []*user
 
 	// mint and approval to Mediator contract.
 	for _, acc := range testAccounts {
@@ -196,7 +196,7 @@ func newTestEnvironment() *environment {
 			tAddr, server)
 		increaseApproval(tSession, mAddr, supply, server)
 
-		users = append(users, &User{acc: acc})
+		users = append(users, &user{acc: acc})
 	}
 
 	// get free port
@@ -266,7 +266,7 @@ func increaseApproval(session *erc20token.ExampleTokenSession,
 	}
 }
 
-func (u *User) deposit(env *environment) {
+func (u *user) deposit(env *environment) {
 	cli1 := newDirectClient(u.acc, env.rootChainAddress,
 		env.mediatorAddress, env.backend)
 	err := cli1.Connect("", env.port)
@@ -296,7 +296,7 @@ func (u *User) deposit(env *environment) {
 	}
 }
 
-func (u *User) transact(newOwner *User) {
+func (u *user) transact(newOwner *user) {
 	for uidStr, nonceUint64 := range u.uids {
 		// create Plasma Cash transaction
 		uid, _ := new(big.Int).SetString(uidStr, 10)

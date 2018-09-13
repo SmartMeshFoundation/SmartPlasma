@@ -17,6 +17,7 @@ import (
 type CheckpointBlock interface {
 	block.Block
 	AddCheckpoint(uid, number *big.Int) error
+	GetNonce(uid *big.Int) *big.Int
 }
 
 // ChptBlock is checkpoint block object.
@@ -128,4 +129,12 @@ func (bl *ChptBlock) CreateProof(uid *big.Int) []byte {
 	}
 	return merkle.CreateProof(uid, merkle.Depth257, bl.tree.GetStructure(),
 		bl.tree.DefaultNodes)
+}
+
+// GetNonce returns nonce for a particular UID.
+func (bl *ChptBlock) GetNonce(uid *big.Int) *big.Int {
+	if !bl.built {
+		return nil
+	}
+	return bl.tree.GetStructure()[0][uid.String()].Big()
 }

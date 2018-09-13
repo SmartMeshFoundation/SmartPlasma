@@ -69,9 +69,13 @@ func TestCreateUidStateProof(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	proof, err := i.service.CreateUIDStateProof(one, chpt.Hash())
+	proof, nonce, err := i.service.CreateUIDStateProof(one, chpt.Hash())
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if nonce.Uint64() != two.Uint64() {
+		t.Fatal("wrong nonce")
 	}
 
 	if len(proof) == 0 {
@@ -98,9 +102,13 @@ func TestCreateUidStateProof(t *testing.T) {
 		t.Fatal("checkpoint valid")
 	}
 
-	proof2, err := i.service.CreateUIDStateProof(two, chpt.Hash())
+	proof2, nonce, err := i.service.CreateUIDStateProof(two, chpt.Hash())
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if nonce.Uint64() != zero.Uint64() {
+		t.Fatal("wrong nonce")
 	}
 
 	if len(proof2) == 0 {

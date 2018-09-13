@@ -244,7 +244,7 @@ func (c *Client) AddCheckpoint(uid, nonce *big.Int) error {
 // CreateUIDStateProof sends UID and checkpoint Hash to PlasmaCash RPC server.
 // Returns merkle Proof for a UID.
 func (c *Client) CreateUIDStateProof(
-	uid *big.Int, checkpointHash common.Hash) ([]byte, error) {
+	uid *big.Int, checkpointHash common.Hash) ([]byte, *big.Int, error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
@@ -258,17 +258,17 @@ func (c *Client) CreateUIDStateProof(
 	select {
 	case replay := <-call.Done:
 		if replay.Error != nil {
-			return nil, replay.Error
+			return nil, nil, replay.Error
 		}
 	case <-ctx.Done():
-		return nil, errors.New("timeout")
+		return nil, nil, errors.New("timeout")
 	}
 
 	if resp.Error != "" {
-		return nil, errors.New(resp.Error)
+		return nil, nil, errors.New(resp.Error)
 	}
 
-	return resp.Proof, nil
+	return resp.Proof, resp.Nonce, nil
 }
 
 // Deposit transacts deposit function from Mediator contract.
@@ -1520,7 +1520,7 @@ func (c *Client) GetCheckpointChallenge(uid *big.Int, checkpoint common.Hash,
 	return resp, err
 }
 
-// SaveBlockToDB saves current transactions block in database on server side.
+// SaveCurrentBlock saves current transactions block in database on server side.
 func (c *Client) SaveCurrentBlock(number uint64) error {
 	ctx, cancel := c.newContext()
 	defer cancel()
