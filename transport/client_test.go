@@ -361,14 +361,18 @@ func addTx(t *testing.T, uid *big.Int,
 		t.Fatal(err)
 	}
 
-	currentBlockResp, err := cli.CurrentBlock()
+	err = cli.SaveCurrentBlock(lastBlock.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = cli.SaveBlockToDB(lastBlock.Uint64(), currentBlockResp)
+	bl, err := cli.GetTransactionsBlock(lastBlock.Uint64())
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if (bl.Hash() == common.Hash{}) {
+		t.Fatal("hash is empty")
 	}
 
 	proof, err := cli.CreateProof(uid, lastBlock.Uint64())
@@ -969,12 +973,7 @@ func TestCheckpointChallenge(t *testing.T) {
 		t.Fatal("wrong transaction status")
 	}
 
-	currentCheckpointResp, err := cli.CurrentCheckpoint()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = cli.SaveCheckpointToDB(currentCheckpointResp)
+	err = cli.SaveCurrentCheckpointBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1111,6 +1110,15 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 	err = cli.SaveCheckpointToDB(currentCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	chptbl, err := cli.GetCheckpointsBlock(buildCheckpointResp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if chptbl.Hash().String() != buildCheckpointResp.String() {
+		t.Fatal("wrong checkpoint hash")
 	}
 
 	createUIDStateProof, err := cli.CreateUIDStateProof(

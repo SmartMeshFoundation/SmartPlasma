@@ -417,6 +417,37 @@ type SaveCurrentBlockResp struct {
 	Error string
 }
 
+// SaveCurrentCheckpointBlockReq is request for SaveCurrentBlock method.
+type SaveCurrentCheckpointBlockReq struct {
+}
+
+// SaveCurrentCheckpointBlockResp is response for SaveCurrentBlock method.
+type SaveCurrentCheckpointBlockResp struct {
+	Error string
+}
+
+// GetTransactionsBlockReq is request for GetTransactionsBlock method.
+type GetTransactionsBlockReq struct {
+	Number uint64
+}
+
+// GetTransactionsBlockResp is response for GetTransactionsBlock method.
+type GetTransactionsBlockResp struct {
+	Block []byte
+	Error string
+}
+
+// GetCheckpointsBlockReq is request for GetCheckpointsBlock method.
+type GetCheckpointsBlockReq struct {
+	Hash common.Hash
+}
+
+// GetCheckpointsBlockResp is response for GetCheckpointsBlock method.
+type GetCheckpointsBlockResp struct {
+	Block []byte
+	Error string
+}
+
 // AcceptTransaction accepts a raw transaction and returns a response.
 func (api *SmartPlasma) AcceptTransaction(req *AcceptTransactionReq,
 	resp *AcceptTransactionResp) error {
@@ -1045,12 +1076,45 @@ func (api *SmartPlasma) newContext() (context.Context, context.CancelFunc) {
 		context.Background(), time.Duration(api.timeout)*time.Second)
 }
 
-// CurrentCheckpoint saves current block to database.
+// SaveCurrentBlock saves current block to database.
 func (api *SmartPlasma) SaveCurrentBlock(req *SaveCurrentBlockReq,
 	resp *SaveCurrentBlockResp) error {
 	err := api.service.SaveBlockToDB(req.Number, api.service.CurrentBlock())
 	if err != nil {
 		resp.Error = err.Error()
 	}
+	return nil
+}
+
+// SaveCurrentCheckpointBlock saves current checkpoints block to database.
+func (api *SmartPlasma) SaveCurrentCheckpointBlock(
+	req *SaveCurrentCheckpointBlockReq,
+	resp *SaveCurrentCheckpointBlockResp) error {
+	err := api.service.SaveCheckpointToDB(api.service.CurrentCheckpoint())
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	return nil
+}
+
+// GetTransactionsBlock returns transactions block by number.
+func (api *SmartPlasma) GetTransactionsBlock(req *GetTransactionsBlockReq,
+	resp *GetTransactionsBlockResp) error {
+	raw, err := api.service.RawBlockFromDB(req.Number)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.Block = raw
+	return nil
+}
+
+// GetCheckpointsBlock returns checkpoints block by number.
+func (api *SmartPlasma) GetCheckpointsBlock(req *GetCheckpointsBlockReq,
+	resp *GetCheckpointsBlockResp) error {
+	raw, err := api.service.RawCheckpointFromDB(req.Hash)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.Block = raw
 	return nil
 }
