@@ -63,6 +63,7 @@ type CreateUIDStateProofReq struct {
 
 // CreateUIDStateProofResp is response for CreateUIDStateProof method.
 type CreateUIDStateProofResp struct {
+	Nonce *big.Int
 	Proof []byte
 	Error string
 }
@@ -457,12 +458,14 @@ func (api *SmartPlasma) AddCheckpoint(req *AddCheckpointReq,
 // CreateUIDStateProof creates merkle Proof for particular UID.
 func (api *SmartPlasma) CreateUIDStateProof(req *CreateUIDStateProofReq,
 	resp *CreateUIDStateProofResp) error {
-	proof, err := api.service.CreateUIDStateProof(req.UID, req.CheckpointHash)
+	proof, nonce, err := api.service.CreateUIDStateProof(
+		req.UID, req.CheckpointHash)
 	if err != nil {
 		resp.Error = err.Error()
 		return nil
 	}
 	resp.Proof = proof
+	resp.Nonce = nonce
 	return nil
 }
 
@@ -1045,7 +1048,7 @@ func (api *SmartPlasma) newContext() (context.Context, context.CancelFunc) {
 		context.Background(), time.Duration(api.timeout)*time.Second)
 }
 
-// CurrentCheckpoint saves current block to database.
+// SaveCurrentBlock saves current block to database.
 func (api *SmartPlasma) SaveCurrentBlock(req *SaveCurrentBlockReq,
 	resp *SaveCurrentBlockResp) error {
 	err := api.service.SaveBlockToDB(req.Number, api.service.CurrentBlock())

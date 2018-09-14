@@ -20,19 +20,18 @@ func (s *Service) AcceptUIDState(uid, number *big.Int) error {
 // CreateUIDStateProof creates merkle proof for particular uid.
 // Argument `chptHash` is checkpoint hash.
 func (s *Service) CreateUIDStateProof(uid *big.Int,
-	chptHash common.Hash) ([]byte, error) {
+	chptHash common.Hash) ([]byte, *big.Int, error) {
 	raw, err := s.RawCheckpointFromDB(chptHash)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	blk := checkpoints.NewBlock()
 	err = buildBlockFromBytes(blk, raw)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-
-	return blk.CreateProof(uid), err
+	return blk.CreateProof(uid), blk.GetNonce(uid), err
 }
 
 // CurrentCheckpoint returns current checkpoint.

@@ -529,9 +529,13 @@ func testCreateUIDStateProof(t *testing.T, direct bool) {
 		t.Fatal(err)
 	}
 
-	proof, err := cli.CreateUIDStateProof(one, hash)
+	proof, nonce, err := cli.CreateUIDStateProof(one, hash)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if nonce.Uint64() != two.Uint64() {
+		t.Fatal("wrong nonce")
 	}
 
 	if len(proof) == 0 {
@@ -979,10 +983,14 @@ func TestCheckpointChallenge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	createUIDStateProof, err := cli.CreateUIDStateProof(
+	createUIDStateProof, nonce, err := cli.CreateUIDStateProof(
 		uid, buildCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if nonce.Uint64() != three.Uint64() {
+		t.Fatal("wrong nonce")
 	}
 
 	resp, err := cli.VerifyCheckpointProof(
@@ -1113,10 +1121,14 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	createUIDStateProof, err := cli.CreateUIDStateProof(
+	createUIDStateProof, nonce, err := cli.CreateUIDStateProof(
 		uid, buildCheckpointResp)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if nonce.Uint64() != two.Uint64() {
+		t.Fatal("wrong nonce")
 	}
 
 	verifyCheckpointProofResp, err := cli.VerifyCheckpointProof(
@@ -1172,10 +1184,14 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	createUIDStateProof2, err := cli.CreateUIDStateProof(
+	createUIDStateProof2, nonce, err := cli.CreateUIDStateProof(
 		uid, buildCheckpointResp2)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if nonce.Uint64() != three.Uint64() {
+		t.Fatal("wrong nonce")
 	}
 
 	challengeCheckpointTx, err := cli.ChallengeCheckpoint(
