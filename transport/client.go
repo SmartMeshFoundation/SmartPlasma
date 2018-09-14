@@ -14,6 +14,8 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/build"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/mediator"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
@@ -75,7 +77,10 @@ const (
 	GetCheckpointChallengeMethod     = "SmartPlasma.GetCheckpointChallenge"
 
 	// additional methods
-	SaveCurrentBlockMethod = "SmartPlasma.SaveCurrentBlock"
+	SaveCurrentBlockMethod           = "SmartPlasma.SaveCurrentBlock"
+	SaveCurrentCheckpointBlockMethod = "SmartPlasma.SaveCurrentCheckpointBlock"
+	GetTransactionsBlockMethod       = "SmartPlasma.GetTransactionsBlock"
+	GetCheckpointsBlockMethod        = "SmartPlasma.GetCheckpointsBlock"
 )
 
 // Client is RPC client for PlasmaCash.
@@ -1545,4 +1550,107 @@ func (c *Client) SaveCurrentBlock(number uint64) error {
 		return errors.New(resp.Error)
 	}
 	return nil
+}
+
+// SaveCurrentCheckpointBlock saves current checkpoints block in database on server side.
+func (c *Client) SaveCurrentCheckpointBlock() error {
+	ctx, cancel := c.newContext()
+	defer cancel()
+
+	req := &SaveCurrentCheckpointBlockReq{}
+
+	var resp *SaveCurrentCheckpointBlockResp
+	call := c.connect.Go(SaveCurrentCheckpointBlockMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return replay.Error
+		}
+	case <-ctx.Done():
+		return errors.New("timeout")
+	}
+
+	if resp.Error != "" {
+		return errors.New(resp.Error)
+	}
+	return nil
+}
+
+// GetTransactionsBlock gets and builds transactions block.
+func (c *Client) GetTransactionsBlock(
+	number uint64) (transactions.TxBlock, error) {
+	ctx, cancel := c.newContext()
+	defer cancel()
+
+	req := &GetTransactionsBlockReq{
+		Number: number,
+	}
+
+	var resp *GetTransactionsBlockResp
+	call := c.connect.Go(GetTransactionsBlockMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return nil, replay.Error
+		}
+	case <-ctx.Done():
+		return nil, errors.New("timeout")
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+
+	bl := transactions.NewTxBlock()
+	err := bl.Unmarshal(resp.Block)
+	if err != nil {
+		return nil, err
+	}
+	_, err = bl.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return bl, nil
+}
+
+// GetCheckpointsBlock gets and builds checkpoints block.
+func (c *Client) GetCheckpointsBlock(
+	hash common.Hash) (checkpoints.CheckpointBlock, error) {
+	ctx, cancel := c.newContext()
+	defer cancel()
+
+	req := &GetCheckpointsBlockReq{
+		Hash: hash,
+	}
+
+	var resp *GetCheckpointsBlockResp
+	call := c.connect.Go(GetCheckpointsBlockMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return nil, replay.Error
+		}
+	case <-ctx.Done():
+		return nil, errors.New("timeout")
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+
+	bl := checkpoints.NewBlock()
+	err := bl.Unmarshal(resp.Block)
+	if err != nil {
+		return nil, err
+	}
+	_, err = bl.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return bl, nil
 }
