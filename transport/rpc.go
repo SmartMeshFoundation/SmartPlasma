@@ -22,6 +22,14 @@ type SmartPlasma struct {
 	service *service.Service
 }
 
+// NewSmartPlasma creates new SmartPlasma handler service.
+func NewSmartPlasma(timeout int, service *service.Service) *SmartPlasma {
+	return &SmartPlasma{
+		timeout: timeout,
+		service: service,
+	}
+}
+
 // AcceptTransactionReq is request for send Plasma transaction to PRC server.
 type AcceptTransactionReq struct {
 	Tx []byte
@@ -449,6 +457,11 @@ type GetCheckpointsBlockResp struct {
 	Error string
 }
 
+func (api *SmartPlasma) newContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(
+		context.Background(), time.Duration(api.timeout)*time.Second)
+}
+
 // AcceptTransaction accepts a raw transaction and returns a response.
 func (api *SmartPlasma) AcceptTransaction(req *AcceptTransactionReq,
 	resp *AcceptTransactionResp) error {
@@ -812,7 +825,7 @@ func (api *SmartPlasma) CurrentCheckpoint(req *CurrentCheckpointReq,
 // SaveBlockToDB saves transactions block in database.
 func (api *SmartPlasma) SaveBlockToDB(req *SaveBlockToDBReq,
 	resp *SaveBlockToDBResp) error {
-	blk := transactions.NewTxBlock()
+	blk := transactions.NewBlock()
 	err := blk.Unmarshal(req.Block)
 	if err != nil {
 		resp.Error = err.Error()
@@ -1072,11 +1085,6 @@ func (api *SmartPlasma) GetCheckpointChallenge(
 	resp.ChallengeTx = result.ChallengeTx
 	resp.ChallengeBlock = result.ChallengeBlock
 	return nil
-}
-
-func (api *SmartPlasma) newContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(
-		context.Background(), time.Duration(api.timeout)*time.Second)
 }
 
 // SaveCurrentBlock saves current block to database.

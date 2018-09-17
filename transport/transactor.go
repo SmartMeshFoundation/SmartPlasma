@@ -6,6 +6,7 @@ import (
 
 	"github.com/SmartMeshFoundation/Spectrum"
 	"github.com/SmartMeshFoundation/Spectrum/common"
+	"github.com/SmartMeshFoundation/Spectrum/core/types"
 	"github.com/pkg/errors"
 )
 
@@ -113,4 +114,45 @@ func (c *Client) EstimateGas(
 	}
 
 	return resp.Gas, nil
+}
+
+// WaitMined to wait mining.
+func (c *Client) WaitMined(
+	ctx context.Context, tx *types.Transaction) (*types.Receipt, error) {
+	if c.backend != nil {
+		return c.backend.Mine(ctx, tx)
+	}
+
+	raw, err := tx.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	req := &WaitMinedReq{
+		Tx: raw,
+	}
+
+	var resp WaitMinedResp
+	call := c.connect.Go(WaitMinedMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return nil, err
+		}
+	case <-ctx.Done():
+		return nil, errors.New("timeout")
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+
+	tr := &types.Receipt{}
+	err = tr.UnmarshalJSON(resp.Tr)
+	if err != nil {
+		return nil, err
+	}
+
+	return tr, nil
 }

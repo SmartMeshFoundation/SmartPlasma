@@ -27,7 +27,7 @@ func (s *Service) CreateProof(uid *big.Int, block uint64) ([]byte, error) {
 		return nil, err
 	}
 
-	blk := transactions.NewTxBlock()
+	blk := transactions.NewBlock()
 	err = buildBlockFromBytes(blk, raw)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (s *Service) VerifyTxProof(uid *big.Int, hash common.Hash,
 
 // InitBlock initializes a new block.
 func (s *Service) InitBlock() {
-	s.currentBlock = transactions.NewTxBlock()
+	s.currentBlock = transactions.NewBlock()
 }
 
 // BuildBlock build current Plasma block.

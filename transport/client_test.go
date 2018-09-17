@@ -125,10 +125,7 @@ func newTestService(t *testing.T, numberAcc int) *testService {
 
 	s := service.NewService(session, server, blockDB, chptDB, rchc, mc)
 
-	smartPlasma := &SmartPlasma{
-		timeout: 100,
-		service: s,
-	}
+	smartPlasma := NewSmartPlasma(100, s)
 
 	rpcServer.RegisterName("SmartPlasma", smartPlasma)
 

@@ -146,7 +146,7 @@ func testTx(t *testing.T, prevBlock, uid,
 }
 
 func testBlock(t *testing.T, txs ...*transaction.Transaction) block.Block {
-	plasmaBlock := transactions.NewTxBlock()
+	plasmaBlock := transactions.NewBlock()
 
 	for _, tx := range txs {
 		if err := plasmaBlock.AddTx(tx); err != nil {

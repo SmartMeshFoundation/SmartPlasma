@@ -25,7 +25,9 @@ type Transactor interface {
 
 // Errors.
 var (
-	ErrNoCode = errors.New("no contract code at given address")
+	ErrNoCode            = errors.New("no contract code at given address")
+	ErrInvalidTransactor = errors.New("transactor is null")
+	ErrTransactOpts      = errors.New("collection of authorization data is null")
 )
 
 // Contract is the wrapper object that reflects a contract on the
@@ -43,6 +45,11 @@ func NewContract(address common.Address, abi abi.ABI,
 	if (address == common.Address{}) {
 		return nil, errors.New("address is null")
 	}
+
+	if ErrInvalidTransactor == nil {
+		return nil, ErrInvalidTransactor
+	}
+
 	return &Contract{
 		abi:        abi,
 		address:    address,
@@ -66,6 +73,10 @@ func (c *Contract) UnmarshalTransaction(raw []byte) (*types.Transaction, error) 
 // Transaction creates signed transaction.
 func (c *Contract) Transaction(opts *bind.TransactOpts, method string,
 	params ...interface{}) (*types.Transaction, error) {
+	if opts == nil {
+		return nil, ErrTransactOpts
+	}
+
 	input, err := c.abi.Pack(method, params...)
 	if err != nil {
 		return nil, err

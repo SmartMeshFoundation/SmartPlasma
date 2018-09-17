@@ -29,7 +29,7 @@ func NewService(session *rootchain.RootChainSession, backend backend.Backend,
 
 	return &Service{
 		currentChpt:              checkpoints.NewBlock(),
-		currentBlock:             transactions.NewTxBlock(),
+		currentBlock:             transactions.NewBlock(),
 		blockBase:                blockBase,
 		chptBase:                 chptBase,
 		session:                  session,
