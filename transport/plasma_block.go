@@ -9,6 +9,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 // BuildBlock builds current transactions block on the server side.
@@ -16,8 +17,8 @@ func (c *Client) BuildBlock() (hash common.Hash, err error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &BuildBlockReq{}
-	var resp *BuildBlockResp
+	req := &handlers.BuildBlockReq{}
+	var resp *handlers.BuildBlockResp
 	call := c.connect.Go(BuildBlockMethod, req, &resp, nil)
 
 	select {
@@ -47,8 +48,8 @@ func (c *Client) SendBlockHash(hash common.Hash) (*types.Transaction, error) {
 		return session.NewBlock(hash)
 	}
 
-	req := &SendBlockHashReq{Hash: hash}
-	var resp *SendBlockHashResp
+	req := &handlers.SendBlockHashReq{Hash: hash}
+	var resp *handlers.SendBlockHashResp
 	call := c.connect.Go(SendBlockHashMethod, req, &resp, nil)
 
 	select {
@@ -84,8 +85,8 @@ func (c *Client) LastBlockNumber() (number *big.Int, err error) {
 		session.TransactOpts.Context = ctx
 		return session.BlockNumber()
 	}
-	req := &LastBlockNumberReq{}
-	var resp LastBlockNumberResp
+	req := &handlers.LastBlockNumberReq{}
+	var resp handlers.LastBlockNumberResp
 	call := c.connect.Go(LastBlockNumberMethod, req, &resp, nil)
 
 	select {
@@ -109,8 +110,8 @@ func (c *Client) CurrentBlock() (block []byte, err error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &CurrentBlockReq{}
-	var resp *CurrentBlockResp
+	req := &handlers.CurrentBlockReq{}
+	var resp *handlers.CurrentBlockResp
 	call := c.connect.Go(CurrentBlockMethod, req, &resp, nil)
 
 	select {
@@ -134,11 +135,11 @@ func (c *Client) SaveBlockToDB(number uint64, raw []byte) error {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &SaveBlockToDBReq{
+	req := &handlers.SaveBlockToDBReq{
 		Number: number,
 		Block:  raw,
 	}
-	var resp *SaveBlockToDBResp
+	var resp *handlers.SaveBlockToDBResp
 	call := c.connect.Go(SaveBlockToDBMethod, req, &resp, nil)
 
 	select {
@@ -161,8 +162,8 @@ func (c *Client) InitBlock() error {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &InitBlockReq{}
-	var resp *InitBlockResp
+	req := &handlers.InitBlockReq{}
+	var resp *handlers.InitBlockResp
 	call := c.connect.Go(InitBlockMethod, req, &resp, nil)
 
 	select {
@@ -186,11 +187,11 @@ func (c *Client) SaveCurrentBlock(number uint64) error {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &SaveCurrentBlockReq{
+	req := &handlers.SaveCurrentBlockReq{
 		Number: number,
 	}
 
-	var resp *SaveCurrentBlockResp
+	var resp *handlers.SaveCurrentBlockResp
 	call := c.connect.Go(SaveCurrentBlockMethod, req, &resp, nil)
 
 	select {
@@ -214,11 +215,11 @@ func (c *Client) GetTransactionsBlock(
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &GetTransactionsBlockReq{
+	req := &handlers.GetTransactionsBlockReq{
 		Number: number,
 	}
 
-	var resp *GetTransactionsBlockResp
+	var resp *handlers.GetTransactionsBlockResp
 	call := c.connect.Go(GetTransactionsBlockMethod, req, &resp, nil)
 
 	select {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 // BuildCheckpoint  builds current checkpoint block on the server side.
@@ -14,8 +15,8 @@ func (c *Client) BuildCheckpoint() (hash common.Hash, err error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &BuildCheckpointReq{}
-	var resp *BuildCheckpointResp
+	req := &handlers.BuildCheckpointReq{}
+	var resp *handlers.BuildCheckpointResp
 	call := c.connect.Go(BuildCheckpointMethod, req, &resp, nil)
 
 	select {
@@ -45,8 +46,8 @@ func (c *Client) SendCheckpointHash(hash common.Hash) (tx *types.Transaction,
 		return session.NewCheckpoint(hash)
 	}
 
-	req := &SendCheckpointHashReq{Hash: hash}
-	var resp *SendCheckpointHashResp
+	req := &handlers.SendCheckpointHashReq{Hash: hash}
+	var resp *handlers.SendCheckpointHashResp
 	call := c.connect.Go(SendCheckpointHashMethod, req, &resp, nil)
 
 	select {
@@ -76,8 +77,8 @@ func (c *Client) CurrentCheckpoint() (checkpoint []byte, err error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &CurrentCheckpointReq{}
-	var resp *CurrentCheckpointResp
+	req := &handlers.CurrentCheckpointReq{}
+	var resp *handlers.CurrentCheckpointResp
 	call := c.connect.Go(CurrentCheckpointMethod, req, &resp, nil)
 
 	select {
@@ -101,10 +102,10 @@ func (c *Client) SaveCheckpointToDB(raw []byte) error {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &SaveCheckpointToDBReq{
+	req := &handlers.SaveCheckpointToDBReq{
 		Block: raw,
 	}
-	var resp *SaveCheckpointToDBResp
+	var resp *handlers.SaveCheckpointToDBResp
 	call := c.connect.Go(SaveCheckpointToDBMethod, req, &resp, nil)
 
 	select {
@@ -127,8 +128,8 @@ func (c *Client) InitCheckpoint() error {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &InitCheckpointReq{}
-	var resp *InitCheckpointResp
+	req := &handlers.InitCheckpointReq{}
+	var resp *handlers.InitCheckpointResp
 	call := c.connect.Go(InitCheckpointMethod, req, &resp, nil)
 
 	select {
@@ -153,9 +154,9 @@ func (c *Client) SaveCurrentCheckpointBlock() error {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &SaveCurrentCheckpointBlockReq{}
+	req := &handlers.SaveCurrentCheckpointBlockReq{}
 
-	var resp *SaveCurrentCheckpointBlockResp
+	var resp *handlers.SaveCurrentCheckpointBlockResp
 	call := c.connect.Go(SaveCurrentCheckpointBlockMethod, req, &resp, nil)
 
 	select {
@@ -179,11 +180,11 @@ func (c *Client) GetCheckpointsBlock(
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &GetCheckpointsBlockReq{
+	req := &handlers.GetCheckpointsBlockReq{
 		Hash: hash,
 	}
 
-	var resp *GetCheckpointsBlockResp
+	var resp *handlers.GetCheckpointsBlockResp
 	call := c.connect.Go(GetCheckpointsBlockMethod, req, &resp, nil)
 
 	select {

@@ -28,6 +28,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/database"
 	"github.com/SmartMeshFoundation/SmartPlasma/database/bolt"
 	"github.com/SmartMeshFoundation/SmartPlasma/service"
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 var (
@@ -42,12 +43,13 @@ type testService struct {
 	dir              string
 	server           *httptest.Server
 	accounts         []*account.PlasmaTransactOpts
-	smartPlasma      *SmartPlasma
+	smartPlasma      *handlers.SmartPlasma
 	blockBase        database.Database
 	chptBase         database.Database
 	backend          backend.Backend
 	rootChainAddress common.Address
 	mediatorAddress  common.Address
+	service          *service.Service
 }
 
 type txData struct {
@@ -125,7 +127,7 @@ func newTestService(t *testing.T, numberAcc int) *testService {
 
 	s := service.NewService(session, server, blockDB, chptDB, rchc, mc)
 
-	smartPlasma := NewSmartPlasma(100, s)
+	smartPlasma := handlers.NewSmartPlasma(100, s)
 
 	rpcServer.RegisterName("SmartPlasma", smartPlasma)
 
@@ -139,12 +141,13 @@ func newTestService(t *testing.T, numberAcc int) *testService {
 		smartPlasma:      smartPlasma,
 		mediatorAddress:  mediatorAddr,
 		rootChainAddress: rootChainAddr,
+		service:          s,
 	}
 }
 
 func (s *testService) Close() {
 	os.RemoveAll(s.dir)
-	s.smartPlasma.service.Close()
+	s.service.Close()
 	s.server.Close()
 }
 
@@ -454,19 +457,19 @@ func testCreateProof(t *testing.T, direct bool) {
 		t.Fatal(err)
 	}
 
-	err = s.smartPlasma.service.AcceptTransaction(tx)
+	err = s.service.AcceptTransaction(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = s.smartPlasma.service.BuildBlock()
+	_, err = s.service.BuildBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	curBlock := s.smartPlasma.service.CurrentBlock()
+	curBlock := s.service.CurrentBlock()
 
-	err = s.smartPlasma.service.SaveBlockToDB(one.Uint64(), curBlock)
+	err = s.service.SaveBlockToDB(one.Uint64(), curBlock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -511,21 +514,21 @@ func testCreateUIDStateProof(t *testing.T, direct bool) {
 	cli := testClient(t, s, direct, s.accounts[0])
 	defer cli.Close()
 
-	err := s.smartPlasma.service.AcceptUIDState(one, two)
+	err := s.service.AcceptUIDState(one, two)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = s.smartPlasma.service.BuildCheckpoint()
+	_, err = s.service.BuildCheckpoint()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	curChpt := s.smartPlasma.service.CurrentCheckpoint()
+	curChpt := s.service.CurrentCheckpoint()
 
-	hash := s.smartPlasma.service.CurrentCheckpoint().Hash()
+	hash := s.service.CurrentCheckpoint().Hash()
 
-	err = s.smartPlasma.service.SaveCheckpointToDB(curChpt)
+	err = s.service.SaveCheckpointToDB(curChpt)
 	if err != nil {
 		t.Fatal(err)
 	}

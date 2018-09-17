@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 // DepositCount returns a deposit counter.
@@ -19,8 +20,8 @@ func (c *Client) DepositCount() (count *big.Int, err error) {
 		session.TransactOpts.Context = ctx
 		return session.DepositCount()
 	}
-	req := &DepositCountReq{}
-	var resp *DepositCountResp
+	req := &handlers.DepositCountReq{}
+	var resp *handlers.DepositCountResp
 	call := c.connect.Go(DepositCountMethod, req, &resp, nil)
 
 	select {
@@ -50,8 +51,8 @@ func (c *Client) ChallengePeriod() (count *big.Int, err error) {
 		return session.ChallengePeriod()
 	}
 
-	req := &ChallengePeriodReq{}
-	var resp *ChallengePeriodResp
+	req := &handlers.ChallengePeriodReq{}
+	var resp *handlers.ChallengePeriodResp
 	call := c.connect.Go(ChallengePeriodMethod, req, &resp, nil)
 
 	select {
@@ -80,8 +81,8 @@ func (c *Client) Operator() (address common.Address, err error) {
 		session.TransactOpts.Context = ctx
 		return session.Operator()
 	}
-	req := &OperatorReq{}
-	var resp *OperatorResp
+	req := &handlers.OperatorReq{}
+	var resp *handlers.OperatorResp
 	call := c.connect.Go(OperatorMethod, req, &resp, nil)
 
 	select {
@@ -111,10 +112,10 @@ func (c *Client) ChildChain(
 		session.TransactOpts.Context = ctx
 		return session.ChildChain(blockNumber)
 	}
-	req := &ChildChainReq{
+	req := &handlers.ChildChainReq{
 		BlockNumber: blockNumber,
 	}
-	var resp *ChildChainResp
+	var resp *handlers.ChildChainResp
 	call := c.connect.Go(ChildChainMethod, req, &resp, nil)
 
 	select {
@@ -134,7 +135,7 @@ func (c *Client) ChildChain(
 }
 
 // Exits returns a incomplete exit by UID.
-func (c *Client) Exits(uid *big.Int) (resp *ExitsResp, err error) {
+func (c *Client) Exits(uid *big.Int) (resp *handlers.ExitsResp, err error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
@@ -145,7 +146,7 @@ func (c *Client) Exits(uid *big.Int) (resp *ExitsResp, err error) {
 		if err != nil {
 			return nil, err
 		}
-		resp = &ExitsResp{
+		resp = &handlers.ExitsResp{
 			State:                result.State,
 			ExitTime:             result.ExitTime,
 			ExitTxBlkNum:         result.ExitTxBlkNum,
@@ -155,7 +156,7 @@ func (c *Client) Exits(uid *big.Int) (resp *ExitsResp, err error) {
 		}
 		return resp, err
 	}
-	req := &ExitsReq{
+	req := &handlers.ExitsReq{
 		UID: uid,
 	}
 
@@ -187,10 +188,10 @@ func (c *Client) Wallet(uid *big.Int) (amount *big.Int, err error) {
 		session.TransactOpts.Context = ctx
 		return session.Wallet(common.BigToHash(uid))
 	}
-	req := &WalletReq{
+	req := &handlers.WalletReq{
 		UID: uid,
 	}
-	var resp *WalletResp
+	var resp *handlers.WalletResp
 	call := c.connect.Go(WalletMethod, req, &resp, nil)
 
 	select {

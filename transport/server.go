@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/service"
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 // Server is RPC server to Plasma Cash service.
@@ -21,7 +22,7 @@ func NewServer(timeout int, port uint16, service *service.Service) *Server {
 	rpcServer := rpc.NewServer()
 
 	rpcServer.RegisterName(
-		"SmartPlasma", NewSmartPlasma(timeout, service))
+		"SmartPlasma", handlers.NewSmartPlasma(timeout, service))
 
 	httpServer := &http.Server{
 		Handler: rpcServer,

@@ -8,16 +8,18 @@ import (
 	"github.com/SmartMeshFoundation/Spectrum/common"
 	"github.com/SmartMeshFoundation/Spectrum/core/types"
 	"github.com/pkg/errors"
+
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 // PendingCodeAt returns the code of the given Account
 // in the pending state.
 func (c *Client) PendingCodeAt(
 	ctx context.Context, account common.Address) ([]byte, error) {
-	req := &PendingCodeAtReq{
+	req := &handlers.PendingCodeAtReq{
 		Account: account,
 	}
-	var resp PendingCodeAtResp
+	var resp handlers.PendingCodeAtResp
 	call := c.connect.Go(PendingCodeAtMethod, req, &resp, nil)
 
 	select {
@@ -40,10 +42,10 @@ func (c *Client) PendingCodeAt(
 // associated with an Account.
 func (c *Client) PendingNonceAt(
 	ctx context.Context, account common.Address) (uint64, error) {
-	req := &PendingNonceAtReq{
+	req := &handlers.PendingNonceAtReq{
 		Account: account,
 	}
-	var resp PendingNonceAtResp
+	var resp handlers.PendingNonceAtResp
 	call := c.connect.Go(PendingNonceAtMethod, req, &resp, nil)
 
 	select {
@@ -65,9 +67,9 @@ func (c *Client) PendingNonceAt(
 // SuggestGasPrice retrieves the currently suggested gas price to allow a timely
 // execution of a transaction.
 func (c *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
-	req := &SuggestGasPriceReq{}
+	req := &handlers.SuggestGasPriceReq{}
 
-	var resp SuggestGasPriceResp
+	var resp handlers.SuggestGasPriceResp
 	call := c.connect.Go(SuggestGasPriceMethod, req, &resp, nil)
 
 	select {
@@ -93,11 +95,11 @@ func (c *Client) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 // for setting a reasonable default.
 func (c *Client) EstimateGas(
 	ctx context.Context, call ethereum.CallMsg) (gas *big.Int, err error) {
-	req := &EstimateGasReq{
+	req := &handlers.EstimateGasReq{
 		Call: call,
 	}
 
-	var resp EstimateGasResp
+	var resp handlers.EstimateGasResp
 	call2 := c.connect.Go(EstimateGasMethod, req, &resp, nil)
 
 	select {
@@ -128,11 +130,11 @@ func (c *Client) WaitMined(
 		return nil, err
 	}
 
-	req := &WaitMinedReq{
+	req := &handlers.WaitMinedReq{
 		Tx: raw,
 	}
 
-	var resp WaitMinedResp
+	var resp handlers.WaitMinedResp
 	call := c.connect.Go(WaitMinedMethod, req, &resp, nil)
 
 	select {

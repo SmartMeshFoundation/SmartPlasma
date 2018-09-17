@@ -5,6 +5,8 @@ import (
 
 	"github.com/SmartMeshFoundation/Spectrum/common"
 	"github.com/pkg/errors"
+
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 // CreateProof sends UID and Block number to PlasmaCash RPC server.
@@ -13,8 +15,8 @@ func (c *Client) CreateProof(uid *big.Int, block uint64) ([]byte, error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &CreateProofReq{UID: uid, Block: block}
-	var resp *CreateProofResp
+	req := &handlers.CreateProofReq{UID: uid, Block: block}
+	var resp *handlers.CreateProofResp
 	call := c.connect.Go(CreateProofMethod, req, &resp, nil)
 
 	select {
@@ -40,13 +42,13 @@ func (c *Client) VerifyTxProof(uid *big.Int, hash common.Hash,
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &VerifyTxProofReq{
+	req := &handlers.VerifyTxProofReq{
 		UID:   uid,
 		Hash:  hash,
 		Block: block,
 		Proof: proof,
 	}
-	var resp *VerifyTxProofResp
+	var resp *handlers.VerifyTxProofResp
 	call := c.connect.Go(VerifyTxProofMethod, req, &resp, nil)
 
 	select {
@@ -72,11 +74,11 @@ func (c *Client) CreateUIDStateProof(
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &CreateUIDStateProofReq{
+	req := &handlers.CreateUIDStateProofReq{
 		UID:            uid,
 		CheckpointHash: checkpointHash,
 	}
-	var resp *CreateUIDStateProofResp
+	var resp *handlers.CreateUIDStateProofResp
 	call := c.connect.Go(CreateUIDStateProofMethod, req, &resp, nil)
 
 	select {
@@ -102,13 +104,13 @@ func (c *Client) VerifyCheckpointProof(uid *big.Int, number *big.Int,
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &VerifyCheckpointProofReq{
+	req := &handlers.VerifyCheckpointProofReq{
 		UID:        uid,
 		Number:     number,
 		Checkpoint: checkpoint,
 		Proof:      proof,
 	}
-	var resp *VerifyCheckpointProofResp
+	var resp *handlers.VerifyCheckpointProofResp
 	call := c.connect.Go(VerifyCheckpointProofMethod, req, &resp, nil)
 
 	select {

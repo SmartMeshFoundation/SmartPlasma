@@ -9,6 +9,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/mediator"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 // Deposit transacts deposit function from Mediator contract.
@@ -37,10 +38,10 @@ func (c *Client) Deposit(currency common.Address,
 		return nil, err
 	}
 
-	req := &RawReq{
+	req := &handlers.RawReq{
 		RawTx: raw,
 	}
-	var resp RawResp
+	var resp handlers.RawResp
 	call := c.connect.Go(DepositMethod, req, &resp, nil)
 
 	select {
@@ -87,10 +88,10 @@ func (c *Client) Withdraw(prevTx, prevTxProof []byte, prevTxBlkNum *big.Int,
 		return nil, err
 	}
 
-	req := &RawReq{
+	req := &handlers.RawReq{
 		RawTx: raw,
 	}
-	var resp RawResp
+	var resp handlers.RawResp
 	call := c.connect.Go(WithdrawMethod, req, &resp, nil)
 
 	select {
@@ -139,10 +140,10 @@ func (c *Client) StartExit(previousTx, previousTxProof []byte,
 		return nil, err
 	}
 
-	req := &RawReq{
+	req := &handlers.RawReq{
 		RawTx: raw,
 	}
-	var resp RawResp
+	var resp handlers.RawResp
 	call := c.connect.Go(StartExitMethod, req, &resp, nil)
 
 	select {
@@ -166,8 +167,8 @@ func (c *Client) AcceptTransaction(rawTx []byte) (err error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &AcceptTransactionReq{Tx: rawTx}
-	var resp *AcceptTransactionResp
+	req := &handlers.AcceptTransactionReq{Tx: rawTx}
+	var resp *handlers.AcceptTransactionResp
 	call := c.connect.Go(AcceptTransactionMethod, req, &resp, nil)
 
 	select {
@@ -192,11 +193,11 @@ func (c *Client) AddCheckpoint(uid, nonce *big.Int) error {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
-	req := &AddCheckpointReq{
+	req := &handlers.AddCheckpointReq{
 		UID:   uid,
 		Nonce: nonce,
 	}
-	var resp *AddCheckpointResp
+	var resp *handlers.AddCheckpointResp
 	call := c.connect.Go(AddCheckpointMethod, req, &resp, nil)
 
 	select {

@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 // ChallengeExit transacts challengeExit function from RootChain contract.
@@ -36,11 +37,11 @@ func (c *Client) ChallengeExit(uid *big.Int, challengeTx,
 		return nil, err
 	}
 
-	req := &RawReq{
+	req := &handlers.RawReq{
 		RawTx: raw,
 	}
 
-	var resp RawResp
+	var resp handlers.RawResp
 	call := c.connect.Go(ChallengeExitMethod, req, &resp, nil)
 	select {
 	case replay := <-call.Done:
@@ -87,10 +88,10 @@ func (c *Client) ChallengeCheckpoint(uid *big.Int, checkpointRoot [32]byte,
 		return nil, err
 	}
 
-	req := &RawReq{
+	req := &handlers.RawReq{
 		RawTx: raw,
 	}
-	var resp RawResp
+	var resp handlers.RawResp
 	call := c.connect.Go(ChallengeCheckpointMethod, req, &resp, nil)
 
 	select {
@@ -137,10 +138,10 @@ func (c *Client) RespondChallengeExit(uid *big.Int, challengeTx, respondTx,
 		return nil, err
 	}
 
-	req := &RawReq{
+	req := &handlers.RawReq{
 		RawTx: raw,
 	}
-	var resp RawResp
+	var resp handlers.RawResp
 	call := c.connect.Go(RespondChallengeExitMethod, req, &resp, nil)
 	select {
 	case replay := <-call.Done:
@@ -187,11 +188,11 @@ func (c *Client) RespondCheckpointChallenge(uid *big.Int,
 		return nil, err
 	}
 
-	req := &RawReq{
+	req := &handlers.RawReq{
 		RawTx: raw,
 	}
 
-	var resp RawResp
+	var resp handlers.RawResp
 	call := c.connect.Go(RespondCheckpointChallengeMethod, req, &resp, nil)
 
 	select {
@@ -242,11 +243,11 @@ func (c *Client) RespondWithHistoricalCheckpoint(uid *big.Int,
 		return nil, err
 	}
 
-	req := &RawReq{
+	req := &handlers.RawReq{
 		RawTx: raw,
 	}
 
-	var resp RawResp
+	var resp handlers.RawResp
 	call := c.connect.Go(
 		RespondWithHistoricalCheckpointMethod, req, &resp, nil)
 
@@ -278,11 +279,11 @@ func (c *Client) ChallengeExists(
 		session.TransactOpts.Context = ctx
 		return session.ChallengeExists(uid, challengeTx)
 	}
-	req := &ChallengeExistsReq{
+	req := &handlers.ChallengeExistsReq{
 		UID:         uid,
 		ChallengeTx: challengeTx,
 	}
-	var resp *ChallengeExistsResp
+	var resp *handlers.ChallengeExistsResp
 	call := c.connect.Go(ChallengeExistsMethod, req, &resp, nil)
 	if err != nil {
 		return false, err
@@ -318,12 +319,12 @@ func (c *Client) CheckpointIsChallenge(
 		return session.CheckpointIsChallenge(
 			uid, checkpoint, challengeTx)
 	}
-	req := &CheckpointIsChallengeReq{
+	req := &handlers.CheckpointIsChallengeReq{
 		UID:         uid,
 		Checkpoint:  checkpoint,
 		ChallengeTx: challengeTx,
 	}
-	var resp *CheckpointIsChallengeResp
+	var resp *handlers.CheckpointIsChallengeResp
 	call := c.connect.Go(CheckpointIsChallengeMethod, req, &resp, nil)
 
 	select {
@@ -352,10 +353,10 @@ func (c *Client) ChallengesLength(uid *big.Int) (length *big.Int, err error) {
 		session.TransactOpts.Context = ctx
 		return session.ChallengesLength(uid)
 	}
-	req := &ChallengesLengthReq{
+	req := &handlers.ChallengesLengthReq{
 		UID: uid,
 	}
-	var resp *ChallengesLengthResp
+	var resp *handlers.ChallengesLengthResp
 	call := c.connect.Go(ChallengesLengthMethod, req, &resp, nil)
 
 	select {
@@ -386,11 +387,11 @@ func (c *Client) CheckpointChallengesLength(
 		session.TransactOpts.Context = ctx
 		return session.CheckpointChallengesLength(uid, checkpoint)
 	}
-	req := &CheckpointChallengesLengthReq{
+	req := &handlers.CheckpointChallengesLengthReq{
 		UID:        uid,
 		Checkpoint: checkpoint,
 	}
-	var resp *CheckpointChallengesLengthResp
+	var resp *handlers.CheckpointChallengesLengthResp
 	call := c.connect.Go(CheckpointChallengesLengthMethod, req, &resp, nil)
 	if err != nil {
 		return nil, err
@@ -414,7 +415,7 @@ func (c *Client) CheckpointChallengesLength(
 
 // GetChallenge returns exit challenge transaction by uid and index.
 func (c *Client) GetChallenge(
-	uid, index *big.Int) (resp *GetChallengeResp, err error) {
+	uid, index *big.Int) (resp *handlers.GetChallengeResp, err error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 	if c.sessionRootChain != nil {
@@ -424,13 +425,13 @@ func (c *Client) GetChallenge(
 		if err != nil {
 			return nil, err
 		}
-		resp = &GetChallengeResp{
+		resp = &handlers.GetChallengeResp{
 			ChallengeTx:    result.ChallengeTx,
 			ChallengeBlock: result.ChallengeBlock,
 		}
 		return resp, err
 	}
-	req := &GetChallengeReq{
+	req := &handlers.GetChallengeReq{
 		UID:   uid,
 		Index: index,
 	}
@@ -455,7 +456,7 @@ func (c *Client) GetChallenge(
 // GetCheckpointChallenge Returns checkpoint challenge transaction
 // by checkpoint merkle root, uid and index.
 func (c *Client) GetCheckpointChallenge(uid *big.Int, checkpoint common.Hash,
-	index *big.Int) (resp *GetCheckpointChallengeResp, err error) {
+	index *big.Int) (resp *handlers.GetCheckpointChallengeResp, err error) {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
@@ -467,13 +468,13 @@ func (c *Client) GetCheckpointChallenge(uid *big.Int, checkpoint common.Hash,
 		if err != nil {
 			return nil, err
 		}
-		resp = &GetCheckpointChallengeResp{
+		resp = &handlers.GetCheckpointChallengeResp{
 			ChallengeTx:    result.ChallengeTx,
 			ChallengeBlock: result.ChallengeBlock,
 		}
 		return resp, err
 	}
-	req := &GetCheckpointChallengeReq{
+	req := &handlers.GetCheckpointChallengeReq{
 		UID:        uid,
 		Checkpoint: checkpoint,
 		Index:      index,
