@@ -126,7 +126,8 @@ func newEnv() *Env {
 		panic(err)
 	}
 
-	s := service.NewService(session, server, blockDB, checkpointDB, rchc, mc)
+	s := service.NewService(
+		session, server, blockDB, checkpointDB, rchc, mc, false)
 
 	srv := NewServer(100, rpcPort, s)
 

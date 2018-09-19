@@ -44,6 +44,7 @@ const (
 	InitBlockMethod            = "SmartPlasma.InitBlock"
 	SaveCurrentBlockMethod     = "SmartPlasma.SaveCurrentBlock"
 	GetTransactionsBlockMethod = "SmartPlasma.GetTransactionsBlock"
+	ValidateBlockMethod        = "SmartPlasma.ValidateBlock"
 
 	// checkpoints methods
 	BuildCheckpointMethod            = "SmartPlasma.BuildCheckpoint"

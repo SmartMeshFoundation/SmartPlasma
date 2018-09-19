@@ -52,12 +52,20 @@ contract RootChain is Ownable {
      */
     mapping(uint256 => exit) public exits;
 
+    /// TODO: combine wallet & wallet2
     /** @dev Dictionary of deposits.
      *
      *  key = unique identifier of a deposit (uid).
      *  value = the amount of currency corresponding to this uid.
      */
     mapping(bytes32 => uint256) public wallet;
+
+    /** @dev Dictionary of deposits2.
+     *
+     *  key = unique identifier of a deposit (uid).
+     *  value = current block number.
+     */
+    mapping(uint256 => uint256) public wallet2;
 
     /** @dev Dictionary of current disputes.
      *
@@ -170,6 +178,8 @@ contract RootChain is Ownable {
             depositCount
         );
         wallet[uid] = amount;
+        wallet2[uint256(uid)] = blockNumber;
+
         depositCount = depositCount.add(uint256(1));
 
         Deposit(account, amount, uint256(uid));
@@ -323,6 +333,7 @@ contract RootChain is Ownable {
         exits[decodedTx.uid].state = 3;
 
         delete(wallet[bytes32(decodedTx.uid)]);
+        delete(wallet2[decodedTx.uid]);
 
         FinishExit(decodedTx.uid);
 

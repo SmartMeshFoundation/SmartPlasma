@@ -113,6 +113,10 @@ func (bl *Block) Marshal() ([]byte, error) {
 func (bl *Block) Unmarshal(raw []byte) error {
 	var checkpoints map[string]common.Hash
 
+	if len(raw) == 0 {
+		return nil
+	}
+
 	if err := json.Unmarshal(raw, &checkpoints); err != nil {
 		return errors.Wrap(err, "failed to decode"+
 			" checkpoints")
@@ -146,5 +150,9 @@ func (bl *Block) GetNonce(uid *big.Int) *big.Int {
 	if !bl.built {
 		return nil
 	}
+
+	bl.mtx.Lock()
+	defer bl.mtx.Unlock()
+
 	return bl.tree.GetStructure()[0][uid.String()].Big()
 }

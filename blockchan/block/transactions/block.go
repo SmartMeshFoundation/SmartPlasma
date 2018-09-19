@@ -2,6 +2,7 @@ package transactions
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -16,11 +17,18 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
+// Errors.
+var (
+	ErrTxNotFound = errors.New("transaction not found")
+)
+
 // TxBlock defines the methods for standard Transactions block.
 type TxBlock interface {
 	block.Block
 	AddTx(tx *transaction.Transaction) error
 	NumberOfTX() int64
+	Transactions(ctx context.Context) <-chan *transaction.Transaction
+	GetTx(uid *big.Int) (*transaction.Transaction, error)
 }
 
 // Block is transactions block object.
@@ -118,6 +126,9 @@ func (bl *Block) CreateProof(uid *big.Int) []byte {
 
 // Marshal encodes block object to raw json data.
 func (bl *Block) Marshal() ([]byte, error) {
+	bl.mtx.Lock()
+	defer bl.mtx.Unlock()
+
 	txs := make(map[string][]byte)
 
 	for uid, tx := range bl.txs {
@@ -144,6 +155,10 @@ func (bl *Block) Marshal() ([]byte, error) {
 func (bl *Block) Unmarshal(raw []byte) error {
 	var txs map[string][]byte
 
+	if len(raw) == 0 {
+		return nil
+	}
+
 	if err := json.Unmarshal(raw, &txs); err != nil {
 		return errors.Wrap(err, "failed to decode"+
 			" transactions")
@@ -164,4 +179,40 @@ func (bl *Block) Unmarshal(raw []byte) error {
 		}
 	}
 	return nil
+}
+
+// Transactions returns channel with transactions from current block.
+func (bl *Block) Transactions(
+	ctx context.Context) <-chan *transaction.Transaction {
+	bl.mtx.Lock()
+
+	result := make(chan *transaction.Transaction)
+
+	go func() {
+		defer bl.mtx.Unlock()
+		defer close(result)
+
+		for _, tx := range bl.txs {
+			select {
+			case result <- tx:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return result
+}
+
+// GetTx returns transaction from block.
+func (bl *Block) GetTx(uid *big.Int) (*transaction.Transaction, error) {
+	bl.mtx.Lock()
+	defer bl.mtx.Unlock()
+
+	tx, ok := bl.txs[uid.String()]
+	if !ok {
+		return nil, ErrTxNotFound
+	}
+
+	return tx, nil
 }

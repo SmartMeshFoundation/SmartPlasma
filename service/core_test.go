@@ -119,7 +119,7 @@ func newInstance(t *testing.T) *instance {
 		t.Fatal(err)
 	}
 
-	service := NewService(session, server, blockDB, chptDB, rchc, mc)
+	service := NewService(session, server, blockDB, chptDB, rchc, mc, false)
 
 	return &instance{
 		service:              service,

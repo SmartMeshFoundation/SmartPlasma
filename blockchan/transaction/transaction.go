@@ -86,9 +86,29 @@ func (tx *Transaction) Hash() common.Hash {
 	})
 }
 
+// PrevBlock returns previous block from the transaction.
+func (tx *Transaction) PrevBlock() *big.Int {
+	return tx.data.PrevBlock
+}
+
 // UID returns uid from the transaction.
 func (tx *Transaction) UID() *big.Int {
 	return tx.data.UID
+}
+
+// Amount returns amount from the transaction.
+func (tx *Transaction) Amount() *big.Int {
+	return tx.data.Amount
+}
+
+// NewOwner returns new owner from the transaction.
+func (tx *Transaction) NewOwner() common.Address {
+	return tx.data.NewOwner
+}
+
+// Nonce returns nonce from the transaction.
+func (tx *Transaction) Nonce() *big.Int {
+	return tx.data.Nonce
 }
 
 // SignatureValues returns signature values.

@@ -433,3 +433,12 @@ type GetCheckpointsBlockResp struct {
 	Block []byte
 	Error string
 }
+
+// ValidateBlockReq is request for ValidateBlock method.
+type ValidateBlockReq struct {
+}
+
+// ValidateBlockResp is response for ValidateBlock method.
+type ValidateBlockResp struct {
+	Error string
+}

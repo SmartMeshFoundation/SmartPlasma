@@ -1,6 +1,11 @@
 package handlers
 
-import "github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
+import (
+	"context"
+	"time"
+
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
+)
 
 // BuildBlock builds current transactions block.
 func (api *SmartPlasma) BuildBlock(req *BuildBlockReq,
@@ -99,5 +104,18 @@ func (api *SmartPlasma) GetTransactionsBlock(req *GetTransactionsBlockReq,
 		resp.Error = err.Error()
 	}
 	resp.Block = raw
+	return nil
+}
+
+// ValidateBlock check current block and remove bad transactions.
+func (api *SmartPlasma) ValidateBlock(req *ValidateBlockReq,
+	resp *ValidateBlockResp) error {
+	ctx, cancel := context.WithTimeout(
+		context.Background(), time.Second*600) // TODO: timeout hardcoded
+	defer cancel()
+
+	if err := api.service.ValidateBlock(ctx); err != nil {
+		resp.Error = err.Error()
+	}
 	return nil
 }

@@ -77,7 +77,8 @@ func newServer(owner account.PlasmaTransactOpts, rootChainAddr,
 	}
 
 	// object for communication local database for checkpoint blocks.
-	checkpointDB, err := bolt.NewDB(filepath.Join(databaseDir, bolt.CheckpointsBucket),
+	checkpointDB, err := bolt.NewDB(
+		filepath.Join(databaseDir, bolt.CheckpointsBucket),
 		bolt.CheckpointsBucket, nil)
 	if err != nil {
 		panic(err)
@@ -85,7 +86,7 @@ func newServer(owner account.PlasmaTransactOpts, rootChainAddr,
 
 	// create new PlasmaCash service.
 	s := service.NewService(rSession, backend, blockDB, checkpointDB,
-		rootChainContract, mediatorContract)
+		rootChainContract, mediatorContract, false)
 
 	// create new RPC server for communication with PlasmaCash clients.
 	return transport.NewServer(100, port, s)

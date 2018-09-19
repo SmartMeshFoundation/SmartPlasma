@@ -247,3 +247,24 @@ func (c *Client) GetTransactionsBlock(
 
 	return bl, nil
 }
+
+// ValidateBlock validates current block and remove bad transactions.
+func (c *Client) ValidateBlock() error {
+	ctx, cancel := c.newContext()
+	defer cancel()
+
+	req := &handlers.ValidateBlockReq{}
+
+	var resp *handlers.ValidateBlockResp
+	call := c.connect.Go(ValidateBlockMethod, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return replay.Error
+		}
+	case <-ctx.Done():
+		return errors.New("timeout")
+	}
+	return nil
+}
