@@ -17,11 +17,12 @@ import (
 type CheckpointBlock interface {
 	block.Block
 	AddCheckpoint(uid, number *big.Int) error
+	NumberOfCheckpoints() int64
 	GetNonce(uid *big.Int) *big.Int
 }
 
-// ChptBlock is checkpoint block object.
-type ChptBlock struct {
+// Block is checkpoint block object.
+type Block struct {
 	mtx     sync.Mutex
 	uIDs    []string
 	numbers map[string]common.Hash
@@ -32,14 +33,14 @@ type ChptBlock struct {
 
 // NewBlock creates new Checkpoints block in memory.
 func NewBlock() CheckpointBlock {
-	return &ChptBlock{
+	return &Block{
 		mtx:     sync.Mutex{},
 		numbers: make(map[string]common.Hash),
 	}
 }
 
 // Hash returns block hash.
-func (bl *ChptBlock) Hash() common.Hash {
+func (bl *Block) Hash() common.Hash {
 	if !bl.built {
 		return common.Hash{}
 	}
@@ -47,7 +48,11 @@ func (bl *ChptBlock) Hash() common.Hash {
 }
 
 // AddCheckpoint adds a checkpoints to the block.
-func (bl *ChptBlock) AddCheckpoint(uid, number *big.Int) error {
+func (bl *Block) AddCheckpoint(uid, number *big.Int) error {
+	if bl.built {
+		return block.ErrAlreadyBuilt
+	}
+
 	bl.mtx.Lock()
 	defer bl.mtx.Unlock()
 
@@ -62,14 +67,14 @@ func (bl *ChptBlock) AddCheckpoint(uid, number *big.Int) error {
 }
 
 // NumberOfCheckpoints returns number of checkpoints in the block.
-func (bl *ChptBlock) NumberOfCheckpoints() int64 {
+func (bl *Block) NumberOfCheckpoints() int64 {
 	return int64(len(bl.numbers))
 }
 
 // Build finalizes the block.
-func (bl *ChptBlock) Build() (common.Hash, error) {
+func (bl *Block) Build() (common.Hash, error) {
 	if bl.built {
-		return common.Hash{}, errors.New("block is already built")
+		return common.Hash{}, block.ErrAlreadyBuilt
 	}
 
 	bl.mtx.Lock()
@@ -89,20 +94,28 @@ func (bl *ChptBlock) Build() (common.Hash, error) {
 	return bl.tree.Root(), nil
 }
 
+// IsBuilt if it is true then a block is already built.
+func (bl *Block) IsBuilt() bool {
+	return bl.built
+}
+
 // Marshal encodes block object to raw json data.
-func (bl *ChptBlock) Marshal() ([]byte, error) {
+func (bl *Block) Marshal() ([]byte, error) {
 	raw, err := json.Marshal(bl.numbers)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to encode"+
-			" checkpoints")
+		return nil, errors.Wrap(err, "failed to encode checkpoints")
 	}
 
 	return raw, nil
 }
 
 // Unmarshal decodes raw json data to block object.
-func (bl *ChptBlock) Unmarshal(raw []byte) error {
+func (bl *Block) Unmarshal(raw []byte) error {
 	var checkpoints map[string]common.Hash
+
+	if len(raw) == 0 {
+		return nil
+	}
 
 	if err := json.Unmarshal(raw, &checkpoints); err != nil {
 		return errors.Wrap(err, "failed to decode"+
@@ -116,14 +129,15 @@ func (bl *ChptBlock) Unmarshal(raw []byte) error {
 		}
 
 		if err := bl.AddCheckpoint(id, checkpoint.Big()); err != nil {
-			return errors.Wrap(err, "failed to add checkpoint in the block")
+			return errors.Wrap(
+				err, "failed to add checkpoint in the block")
 		}
 	}
 	return nil
 }
 
 // CreateProof creates merkle proof for particular uid.
-func (bl *ChptBlock) CreateProof(uid *big.Int) []byte {
+func (bl *Block) CreateProof(uid *big.Int) []byte {
 	if !bl.built {
 		return nil
 	}
@@ -132,9 +146,13 @@ func (bl *ChptBlock) CreateProof(uid *big.Int) []byte {
 }
 
 // GetNonce returns nonce for a particular UID.
-func (bl *ChptBlock) GetNonce(uid *big.Int) *big.Int {
+func (bl *Block) GetNonce(uid *big.Int) *big.Int {
 	if !bl.built {
 		return nil
 	}
+
+	bl.mtx.Lock()
+	defer bl.mtx.Unlock()
+
 	return bl.tree.GetStructure()[0][uid.String()].Big()
 }

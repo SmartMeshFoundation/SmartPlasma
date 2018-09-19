@@ -19,23 +19,25 @@ type Service struct {
 	backend                  backend.Backend
 	rootChainContractWrapper *build.Contract
 	mediatorContractWrapper  *build.Contract
+	strongMode               bool
 }
 
 // NewService creates new PlasmaCash service.
 func NewService(session *rootchain.RootChainSession, backend backend.Backend,
 	blockBase, chptBase database.Database,
 	rootChainContractWrapper *build.Contract,
-	mediatorContractWrapper *build.Contract) *Service {
+	mediatorContractWrapper *build.Contract, strongMode bool) *Service {
 
 	return &Service{
 		currentChpt:              checkpoints.NewBlock(),
-		currentBlock:             transactions.NewTxBlock(),
+		currentBlock:             transactions.NewBlock(),
 		blockBase:                blockBase,
 		chptBase:                 chptBase,
 		session:                  session,
 		backend:                  backend,
 		rootChainContractWrapper: rootChainContractWrapper,
 		mediatorContractWrapper:  mediatorContractWrapper,
+		strongMode:               strongMode,
 	}
 }
 

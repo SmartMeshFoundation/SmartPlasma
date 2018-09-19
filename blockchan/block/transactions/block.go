@@ -2,6 +2,7 @@ package transactions
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -16,14 +17,22 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
+// Errors.
+var (
+	ErrTxNotFound = errors.New("transaction not found")
+)
+
 // TxBlock defines the methods for standard Transactions block.
 type TxBlock interface {
 	block.Block
 	AddTx(tx *transaction.Transaction) error
+	NumberOfTX() int64
+	Transactions(ctx context.Context) <-chan *transaction.Transaction
+	GetTx(uid *big.Int) (*transaction.Transaction, error)
 }
 
-// TrBlock is transactions block object.
-type TrBlock struct {
+// Block is transactions block object.
+type Block struct {
 	mtx  sync.Mutex
 	uIDs []string
 	txs  map[string]*transaction.Transaction
@@ -32,16 +41,16 @@ type TrBlock struct {
 	built bool
 }
 
-// NewTxBlock creates new Transactions block in memory.
-func NewTxBlock() TxBlock {
-	return &TrBlock{
+// NewBlock creates new Transactions block in memory.
+func NewBlock() TxBlock {
+	return &Block{
 		mtx: sync.Mutex{},
 		txs: make(map[string]*transaction.Transaction),
 	}
 }
 
 // Hash returns block hash.
-func (bl *TrBlock) Hash() common.Hash {
+func (bl *Block) Hash() common.Hash {
 	if !bl.built {
 		return common.Hash{}
 	}
@@ -49,7 +58,11 @@ func (bl *TrBlock) Hash() common.Hash {
 }
 
 // AddTx adds a transaction to the block.
-func (bl *TrBlock) AddTx(tx *transaction.Transaction) error {
+func (bl *Block) AddTx(tx *transaction.Transaction) error {
+	if bl.built {
+		return block.ErrAlreadyBuilt
+	}
+
 	bl.mtx.Lock()
 	defer bl.mtx.Unlock()
 
@@ -64,14 +77,14 @@ func (bl *TrBlock) AddTx(tx *transaction.Transaction) error {
 }
 
 // NumberOfTX returns number of transactions in the block.
-func (bl *TrBlock) NumberOfTX() int64 {
+func (bl *Block) NumberOfTX() int64 {
 	return int64(len(bl.txs))
 }
 
 // Build finalizes the block.
-func (bl *TrBlock) Build() (common.Hash, error) {
+func (bl *Block) Build() (common.Hash, error) {
 	if bl.built {
-		return common.Hash{}, errors.New("block is already built")
+		return common.Hash{}, block.ErrAlreadyBuilt
 	}
 
 	bl.mtx.Lock()
@@ -97,8 +110,13 @@ func (bl *TrBlock) Build() (common.Hash, error) {
 	return bl.tree.Root(), nil
 }
 
+// IsBuilt if it is true then a block is already built.
+func (bl *Block) IsBuilt() bool {
+	return bl.built
+}
+
 // CreateProof creates merkle proof for particular uid.
-func (bl *TrBlock) CreateProof(uid *big.Int) []byte {
+func (bl *Block) CreateProof(uid *big.Int) []byte {
 	if !bl.built {
 		return nil
 	}
@@ -107,7 +125,10 @@ func (bl *TrBlock) CreateProof(uid *big.Int) []byte {
 }
 
 // Marshal encodes block object to raw json data.
-func (bl *TrBlock) Marshal() ([]byte, error) {
+func (bl *Block) Marshal() ([]byte, error) {
+	bl.mtx.Lock()
+	defer bl.mtx.Unlock()
+
 	txs := make(map[string][]byte)
 
 	for uid, tx := range bl.txs {
@@ -131,8 +152,12 @@ func (bl *TrBlock) Marshal() ([]byte, error) {
 }
 
 // Unmarshal decodes raw json data to block object.
-func (bl *TrBlock) Unmarshal(raw []byte) error {
+func (bl *Block) Unmarshal(raw []byte) error {
 	var txs map[string][]byte
+
+	if len(raw) == 0 {
+		return nil
+	}
 
 	if err := json.Unmarshal(raw, &txs); err != nil {
 		return errors.Wrap(err, "failed to decode"+
@@ -154,4 +179,40 @@ func (bl *TrBlock) Unmarshal(raw []byte) error {
 		}
 	}
 	return nil
+}
+
+// Transactions returns channel with transactions from current block.
+func (bl *Block) Transactions(
+	ctx context.Context) <-chan *transaction.Transaction {
+	bl.mtx.Lock()
+
+	result := make(chan *transaction.Transaction)
+
+	go func() {
+		defer bl.mtx.Unlock()
+		defer close(result)
+
+		for _, tx := range bl.txs {
+			select {
+			case result <- tx:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return result
+}
+
+// GetTx returns transaction from block.
+func (bl *Block) GetTx(uid *big.Int) (*transaction.Transaction, error) {
+	bl.mtx.Lock()
+	defer bl.mtx.Unlock()
+
+	tx, ok := bl.txs[uid.String()]
+	if !ok {
+		return nil, ErrTxNotFound
+	}
+
+	return tx, nil
 }

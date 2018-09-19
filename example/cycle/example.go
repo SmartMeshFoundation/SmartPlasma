@@ -111,7 +111,7 @@ func newServer(owner account.PlasmaTransactOpts, rootChainAddr,
 
 	// create new PlasmaCash service.
 	s := service.NewService(rSession, backend, blockDB, checkpointDB,
-		rootChainContract, mediatorContract)
+		rootChainContract, mediatorContract, false)
 
 	// create new RPC server for communication with PlasmaCash clients.
 	return transport.NewServer(100, port, s)

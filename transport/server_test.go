@@ -126,7 +126,8 @@ func newEnv() *Env {
 		panic(err)
 	}
 
-	s := service.NewService(session, server, blockDB, checkpointDB, rchc, mc)
+	s := service.NewService(
+		session, server, blockDB, checkpointDB, rchc, mc, false)
 
 	srv := NewServer(100, rpcPort, s)
 
@@ -227,12 +228,13 @@ func BenchmarkAcceptTransaction(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		tx, err := transaction.NewTransaction(zero, one, two,
-			three, clients[1].opts.From)
+			three, clients[1].Opts().From)
 		if err != nil {
 			b.Fatal(err)
 		}
 
-		signedTx, err := clients[0].opts.PlasmaSigner(clients[0].opts.From, tx)
+		signedTx, err := clients[0].Opts().PlasmaSigner(
+			clients[0].Opts().From, tx)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -244,9 +246,6 @@ func BenchmarkAcceptTransaction(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		err = clients[0].AcceptTransaction(buf.Bytes())
-		if err != nil {
-			b.Fatal(err)
-		}
+		clients[0].AcceptTransaction(buf.Bytes())
 	}
 }

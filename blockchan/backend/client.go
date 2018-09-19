@@ -13,8 +13,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	rinkeby = "https://rinkeby.infura.io/nanodzeck"
+// Errors.
+var (
+	ErrInvalidBackend = errors.New("unsupported backend")
 )
 
 // Backend interface.
@@ -35,8 +36,8 @@ type backend struct {
 }
 
 // NewBackend makes new Backend.
-func NewBackend() Backend {
-	cli, err := ethclient.Dial(rinkeby)
+func NewBackend(url string) Backend {
+	cli, err := ethclient.Dial(url)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -63,7 +64,7 @@ func (back *backend) Mine(ctx context.Context,
 		conn.Commit()
 		return bind.WaitMined(ctx, conn, tx)
 	}
-	return nil, errors.New("unsupported backend")
+	return nil, ErrInvalidBackend
 }
 
 // AdjustTime adds a time shift to the simulated clock.

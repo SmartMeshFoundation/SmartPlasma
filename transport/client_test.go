@@ -20,6 +20,7 @@ import (
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/account"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/backend"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/build"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/erc20token"
@@ -28,6 +29,7 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/database"
 	"github.com/SmartMeshFoundation/SmartPlasma/database/bolt"
 	"github.com/SmartMeshFoundation/SmartPlasma/service"
+	"github.com/SmartMeshFoundation/SmartPlasma/transport/handlers"
 )
 
 var (
@@ -42,19 +44,19 @@ type testService struct {
 	dir              string
 	server           *httptest.Server
 	accounts         []*account.PlasmaTransactOpts
-	smartPlasma      *SmartPlasma
+	smartPlasma      *handlers.SmartPlasma
 	blockBase        database.Database
 	chptBase         database.Database
 	backend          backend.Backend
 	rootChainAddress common.Address
 	mediatorAddress  common.Address
+	service          *service.Service
 }
 
 type txData struct {
-	rawTx     []byte
-	proof     []byte
-	block     uint64
-	blockHash common.Hash
+	rawTx []byte
+	proof []byte
+	block uint64
 }
 
 func newTestService(t *testing.T, numberAcc int) *testService {
@@ -123,12 +125,9 @@ func newTestService(t *testing.T, numberAcc int) *testService {
 		t.Fatal(err)
 	}
 
-	s := service.NewService(session, server, blockDB, chptDB, rchc, mc)
+	s := service.NewService(session, server, blockDB, chptDB, rchc, mc, false)
 
-	smartPlasma := &SmartPlasma{
-		timeout: 100,
-		service: s,
-	}
+	smartPlasma := handlers.NewSmartPlasma(100, s)
 
 	rpcServer.RegisterName("SmartPlasma", smartPlasma)
 
@@ -142,12 +141,13 @@ func newTestService(t *testing.T, numberAcc int) *testService {
 		smartPlasma:      smartPlasma,
 		mediatorAddress:  mediatorAddr,
 		rootChainAddress: rootChainAddr,
+		service:          s,
 	}
 }
 
 func (s *testService) Close() {
 	os.RemoveAll(s.dir)
-	s.smartPlasma.service.Close()
+	s.service.Close()
 	s.server.Close()
 }
 
@@ -324,17 +324,63 @@ func testTx(t *testing.T, prevBlock, uid,
 }
 
 func addTx(t *testing.T, uid *big.Int,
-	tx *transaction.Transaction, cli *Client) *txData {
-	buf := bytes.NewBuffer([]byte{})
+	goodTxs, badTxs []*transaction.Transaction, cli *Client, validate bool) (map[string]*txData, common.Hash) {
+	result := make(map[string]*txData)
 
-	err := tx.EncodeRLP(buf)
-	if err != nil {
-		t.Fatal(err)
+	for _, tx := range goodTxs {
+		buf := bytes.NewBuffer([]byte{})
+
+		err := tx.EncodeRLP(buf)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = cli.AcceptTransaction(buf.Bytes())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		data := &txData{
+			rawTx: buf.Bytes(),
+		}
+
+		result[tx.UID().String()] = data
 	}
 
-	err = cli.AcceptTransaction(buf.Bytes())
-	if err != nil {
-		t.Fatal(err)
+	if validate {
+		for _, tx := range badTxs {
+			buf := bytes.NewBuffer([]byte{})
+
+			err := tx.EncodeRLP(buf)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			err = cli.AcceptTransaction(buf.Bytes())
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		err := cli.ValidateBlock()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		curBlock, err := cli.CurrentBlock()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		testBlock := transactions.NewBlock()
+		err = testBlock.Unmarshal(curBlock)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if testBlock.NumberOfTX() == 0 && len(goodTxs) == 0 {
+			return nil, common.Hash{}
+		}
 	}
 
 	buildResp, err := cli.BuildBlock()
@@ -371,13 +417,8 @@ func addTx(t *testing.T, uid *big.Int,
 		t.Fatal(err)
 	}
 
-	if (bl.Hash() == common.Hash{}) {
+	if (bl.Hash() == common.Hash{}) && len(goodTxs) != 0 {
 		t.Fatal("hash is empty")
-	}
-
-	proof, err := cli.CreateProof(uid, lastBlock.Uint64())
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	err = cli.InitBlock()
@@ -385,22 +426,44 @@ func addTx(t *testing.T, uid *big.Int,
 		t.Fatal(err)
 	}
 
-	respProof, err := cli.VerifyTxProof(uid, tx.Hash(),
-		lastBlock.Uint64(), proof)
-	if err != nil {
-		t.Fatal(err)
+	for _, tx := range goodTxs {
+		proof, err := cli.CreateProof(tx.UID(), lastBlock.Uint64())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		respProof, err := cli.VerifyTxProof(tx.UID(), tx.Hash(),
+			lastBlock.Uint64(), proof)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if !respProof {
+			t.Fatal("not exists")
+		}
+
+		result[tx.UID().String()].proof = proof
+		result[tx.UID().String()].block = lastBlock.Uint64()
 	}
 
-	if !respProof {
-		t.Fatal("not exists")
+	for _, tx := range badTxs {
+		proof, err := cli.CreateProof(tx.UID(), lastBlock.Uint64())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		respProof, err := cli.VerifyTxProof(tx.UID(), tx.Hash(),
+			lastBlock.Uint64(), proof)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if respProof {
+			t.Fatal("bad transaction exists in the block")
+		}
 	}
 
-	return &txData{
-		rawTx:     buf.Bytes(),
-		proof:     proof,
-		block:     lastBlock.Uint64(),
-		blockHash: buildResp,
-	}
+	return result, buildResp
 }
 
 func testAcceptTransaction(t *testing.T, direct bool) {
@@ -457,19 +520,19 @@ func testCreateProof(t *testing.T, direct bool) {
 		t.Fatal(err)
 	}
 
-	err = s.smartPlasma.service.AcceptTransaction(tx)
+	err = s.service.AcceptTransaction(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = s.smartPlasma.service.BuildBlock()
+	_, err = s.service.BuildBlock()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	curBlock := s.smartPlasma.service.CurrentBlock()
+	curBlock := s.service.CurrentBlock()
 
-	err = s.smartPlasma.service.SaveBlockToDB(one.Uint64(), curBlock)
+	err = s.service.SaveBlockToDB(one.Uint64(), curBlock)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -514,21 +577,21 @@ func testCreateUIDStateProof(t *testing.T, direct bool) {
 	cli := testClient(t, s, direct, s.accounts[0])
 	defer cli.Close()
 
-	err := s.smartPlasma.service.AcceptUIDState(one, two)
+	err := s.service.AcceptUIDState(one, two)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = s.smartPlasma.service.BuildCheckpoint()
+	_, err = s.service.BuildCheckpoint()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	curChpt := s.smartPlasma.service.CurrentCheckpoint()
+	curChpt := s.service.CurrentCheckpoint()
 
-	hash := s.smartPlasma.service.CurrentCheckpoint().Hash()
+	hash := s.service.CurrentCheckpoint().Hash()
 
-	err = s.smartPlasma.service.SaveCheckpointToDB(curChpt)
+	err = s.service.SaveCheckpointToDB(curChpt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -591,8 +654,11 @@ func testWithdraw(t *testing.T, direct bool) {
 	tx1 := testTx(t, zero, uid, one, zero, s.accounts[0].From, s.accounts[0])
 	tx2 := testTx(t, one, uid, one, one, s.accounts[1].From, s.accounts[0])
 
-	tx1Obj := addTx(t, uid, tx1, cli)
-	tx2Obj := addTx(t, uid, tx2, cli)
+	objects0, block0Hash := addTx(t, uid, []*transaction.Transaction{tx1}, nil, cli, false)
+	objects1, _ := addTx(t, uid, []*transaction.Transaction{tx2}, nil, cli, false)
+
+	tx1Obj := objects0[tx1.UID().String()]
+	tx2Obj := objects1[tx2.UID().String()]
 
 	startExitTx, err := cli2.StartExit(tx1Obj.rawTx, tx1Obj.proof,
 		new(big.Int).SetUint64(tx1Obj.block), tx2Obj.rawTx,
@@ -632,7 +698,7 @@ func testWithdraw(t *testing.T, direct bool) {
 		t.Fatal(err)
 	}
 
-	if block1Hash.String() != tx1Obj.blockHash.String() {
+	if block1Hash.String() != block0Hash.String() {
 		t.Fatal("wrong child chain block")
 	}
 }
@@ -661,9 +727,13 @@ func testChallengeNonce(t *testing.T, direct bool) {
 	tx2 := testTx(t, one, uid, one, one, s.accounts[2].From, s.accounts[1])
 	tx3 := testTx(t, two, uid, one, two, s.accounts[3].From, s.accounts[2])
 
-	tx1Obj := addTx(t, uid, tx1, cli)
-	tx2Obj := addTx(t, uid, tx2, cli)
-	tx3Obj := addTx(t, uid, tx3, cli)
+	objects1, _ := addTx(t, uid, []*transaction.Transaction{tx1}, nil, cli, false)
+	objects2, _ := addTx(t, uid, []*transaction.Transaction{tx2}, nil, cli, false)
+	objects3, _ := addTx(t, uid, []*transaction.Transaction{tx3}, nil, cli, false)
+
+	tx1Obj := objects1[tx1.UID().String()]
+	tx2Obj := objects2[tx2.UID().String()]
+	tx3Obj := objects3[tx3.UID().String()]
 
 	startExitTx, err := cli2.StartExit(tx1Obj.rawTx, tx1Obj.proof,
 		new(big.Int).SetUint64(tx1Obj.block), tx2Obj.rawTx,
@@ -733,9 +803,13 @@ func testChallengeDoubleSpending(t *testing.T, direct bool) {
 	tx2 := testTx(t, one, uid, one, one, u1.From, owner)
 	tx3 := testTx(t, one, uid, one, one, u2.From, owner)
 
-	tx1Obj := addTx(t, uid, tx1, cli)
-	tx2Obj := addTx(t, uid, tx2, cli)
-	tx3Obj := addTx(t, uid, tx3, cli)
+	objects1, _ := addTx(t, uid, []*transaction.Transaction{tx1}, nil, cli, false)
+	objects2, _ := addTx(t, uid, []*transaction.Transaction{tx2}, nil, cli, false)
+	objects3, _ := addTx(t, uid, []*transaction.Transaction{tx3}, nil, cli, false)
+
+	tx1Obj := objects1[tx1.UID().String()]
+	tx2Obj := objects2[tx2.UID().String()]
+	tx3Obj := objects3[tx3.UID().String()]
 
 	startExitTx, err := cli2.StartExit(tx1Obj.rawTx, tx1Obj.proof,
 		new(big.Int).SetUint64(tx1Obj.block), tx3Obj.rawTx,
@@ -789,11 +863,15 @@ func testEarlyChallengeDoubleSpending(t *testing.T, direct bool) {
 	tx4 := testTx(t, three, uid, one, two, owner.From, u2)
 	tx5 := testTx(t, four, uid, one, three, u2.From, owner)
 
-	addTx(t, uid, tx1, cli)
-	tx2Obj := addTx(t, uid, tx2, cli)
-	addTx(t, uid, tx3, cli)
-	tx4Obj := addTx(t, uid, tx4, cli)
-	tx5Obj := addTx(t, uid, tx5, cli)
+	addTx(t, uid, []*transaction.Transaction{tx1}, nil, cli, false)
+	objects2, _ := addTx(t, uid, []*transaction.Transaction{tx2}, nil, cli, false)
+	addTx(t, uid, []*transaction.Transaction{tx3}, nil, cli, false)
+	objects4, _ := addTx(t, uid, []*transaction.Transaction{tx4}, nil, cli, false)
+	objects5, _ := addTx(t, uid, []*transaction.Transaction{tx5}, nil, cli, false)
+
+	tx2Obj := objects2[tx2.UID().String()]
+	tx4Obj := objects4[tx4.UID().String()]
+	tx5Obj := objects5[tx5.UID().String()]
 
 	startExitTx, err := cli2.StartExit(tx4Obj.rawTx, tx4Obj.proof,
 		new(big.Int).SetUint64(tx4Obj.block), tx5Obj.rawTx,
@@ -878,11 +956,16 @@ func testRespondToChallenge(t *testing.T, direct bool) {
 	tx4 := testTx(t, three, uid, one, three, owner.From, u2)
 	tx5 := testTx(t, four, uid, one, four, u2.From, owner)
 
-	addTx(t, uid, tx1, cli)
-	tx2Obj := addTx(t, uid, tx2, cli)
-	tx3Obj := addTx(t, uid, tx3, cli)
-	tx4Obj := addTx(t, uid, tx4, cli)
-	tx5Obj := addTx(t, uid, tx5, cli)
+	addTx(t, uid, []*transaction.Transaction{tx1}, nil, cli, false)
+	objects2, _ := addTx(t, uid, []*transaction.Transaction{tx2}, nil, cli, false)
+	objects3, _ := addTx(t, uid, []*transaction.Transaction{tx3}, nil, cli, false)
+	objects4, _ := addTx(t, uid, []*transaction.Transaction{tx4}, nil, cli, false)
+	objects5, _ := addTx(t, uid, []*transaction.Transaction{tx5}, nil, cli, false)
+
+	tx2Obj := objects2[tx2.UID().String()]
+	tx3Obj := objects3[tx3.UID().String()]
+	tx4Obj := objects4[tx4.UID().String()]
+	tx5Obj := objects5[tx5.UID().String()]
 
 	startExitTx, err := cli2.StartExit(tx4Obj.rawTx, tx4Obj.proof,
 		new(big.Int).SetUint64(tx4Obj.block), tx5Obj.rawTx,
@@ -947,9 +1030,12 @@ func TestCheckpointChallenge(t *testing.T) {
 	tx2 := testTx(t, one, uid, one, one, u1.From, owner)
 	tx3 := testTx(t, two, uid, one, two, u2.From, u1)
 
-	addTx(t, uid, tx1, cli)
-	tx2Obj := addTx(t, uid, tx2, cli)
-	tx3Obj := addTx(t, uid, tx3, cli)
+	addTx(t, uid, []*transaction.Transaction{tx1}, nil, cli, false)
+	objects2, _ := addTx(t, uid, []*transaction.Transaction{tx2}, nil, cli, false)
+	objects3, _ := addTx(t, uid, []*transaction.Transaction{tx3}, nil, cli, false)
+
+	tx2Obj := objects2[tx2.UID().String()]
+	tx3Obj := objects3[tx3.UID().String()]
 
 	err := cli.AddCheckpoint(uid, three)
 	if err != nil {
@@ -1081,8 +1167,10 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 	tx1 := testTx(t, zero, uid, one, zero, u1.From, owner)
 	tx2 := testTx(t, one, uid, one, one, u2.From, owner)
 
-	addTx(t, uid, tx1, cli)
-	tx2Obj := addTx(t, uid, tx2, cli)
+	addTx(t, uid, []*transaction.Transaction{tx1}, nil, cli, false)
+	objects2, _ := addTx(t, uid, []*transaction.Transaction{tx2}, nil, cli, false)
+
+	tx2Obj := objects2[tx2.UID().String()]
 
 	err := cli.AddCheckpoint(uid, two)
 	if err != nil {
@@ -1224,4 +1312,57 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 	if !s.backend.GoodTransaction(respTx) {
 		t.Fatal("failed to start exit")
 	}
+}
+
+func TestValidateBlock(t *testing.T) {
+	s := newTestService(t, 3)
+	defer s.Close()
+
+	cli0 := testClient(t, s, true, s.accounts[0])
+	defer cli0.Close()
+
+	cli1 := testClient(t, s, true, s.accounts[0])
+	defer cli1.Close()
+
+	uid := deposit(t, s, cli0, one)
+	badUID := big.NewInt(1000)
+
+	validTx1 := testTx(t, zero, uid, one, zero, s.accounts[0].From, s.accounts[0])
+	validTx2 := testTx(t, one, uid, one, one, s.accounts[1].From, s.accounts[0])
+	validTx3 := testTx(t, two, uid, one, two, s.accounts[2].From, s.accounts[1])
+
+	//bad new owner
+	badTx0 := testTx(t, zero, uid, one, zero, s.accounts[1].From, s.accounts[0])
+
+	// no deposit
+	badTx1 := testTx(t, zero, badUID, one, zero, s.accounts[0].From, s.accounts[0])
+
+	// bad nonce
+	badTx2 := testTx(t, zero, uid, one, zero, s.accounts[0].From, s.accounts[0])
+
+	// bad nonce
+	badTx3 := testTx(t, one, uid, one, two, s.accounts[1].From, s.accounts[0])
+
+	// bad amount
+	badTx4 := testTx(t, one, uid, two, one, s.accounts[1].From, s.accounts[0])
+
+	// bad previous block
+	badTx5 := testTx(t, two, uid, one, one, s.accounts[1].From, s.accounts[0])
+
+	// bad new owner
+	badTx6 := testTx(t, one, uid, one, one, s.accounts[0].From, s.accounts[0])
+
+	addTx(t, uid, nil, []*transaction.Transaction{badTx0}, cli0, true)
+
+	addTx(t, uid, []*transaction.Transaction{validTx1},
+		[]*transaction.Transaction{badTx1}, cli0, true)
+
+	addTx(t, uid, nil, []*transaction.Transaction{badTx2}, cli0, true)
+	addTx(t, uid, nil, []*transaction.Transaction{badTx3}, cli0, true)
+	addTx(t, uid, nil, []*transaction.Transaction{badTx4}, cli0, true)
+	addTx(t, uid, nil, []*transaction.Transaction{badTx5}, cli0, true)
+	addTx(t, uid, nil, []*transaction.Transaction{badTx6}, cli0, true)
+
+	addTx(t, uid, []*transaction.Transaction{validTx2}, nil, cli0, true)
+	addTx(t, uid, []*transaction.Transaction{validTx3}, nil, cli1, true)
 }

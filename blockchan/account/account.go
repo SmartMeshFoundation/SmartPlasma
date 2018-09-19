@@ -12,6 +12,11 @@ import (
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/transaction"
 )
 
+// Errors.
+var (
+	ErrNotAuthorized = errors.New("not authorized to sign this account")
+)
+
 // PlasmaSignerFn is a signer function callback when requires a method
 // to sign the Plasma cash transaction before submission.
 type PlasmaSignerFn func(address common.Address,
@@ -70,7 +75,7 @@ func NewPlasmaKeyedTransactor(key *ecdsa.PrivateKey) *PlasmaTransactOpts {
 		PlasmaSigner: func(address common.Address,
 			tx *transaction.Transaction) (*transaction.Transaction, error) {
 			if address != keyAddr {
-				return nil, errors.New("not authorized to sign this account")
+				return nil, ErrNotAuthorized
 			}
 			return tx.SignTx(key)
 		},

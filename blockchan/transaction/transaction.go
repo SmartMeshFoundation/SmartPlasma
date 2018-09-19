@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"io"
 	"math/big"
 
@@ -16,7 +15,14 @@ import (
 
 // Errors transaction-related errors.
 var (
-	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
+	ErrInvalidSig           = errors.New("invalid transaction v, r, s values")
+	ErrInvalidArguments     = errors.New("invalid arguments")
+	ErrInvalidPreviousBlock = errors.New("invalid previous block number")
+	ErrInvalidNewOwner      = errors.New("invalid new owner address")
+	ErrInvalidUID           = errors.New("invalid UID")
+	ErrInvalidPrivateKey    = errors.New("invalid private key")
+	ErrInvalidPublicKey     = errors.New("invalid public key")
+	ErrInvalidTx            = errors.New("invalid transaction")
 )
 
 // Transaction structure.
@@ -36,15 +42,19 @@ type txData struct {
 // NewTransaction creates new unsigned transaction.
 func NewTransaction(prevBlock, uid, amount, nonce *big.Int,
 	newOwner common.Address) (*Transaction, error) {
-	if prevBlock == nil || prevBlock.Cmp(big.NewInt(-1)) < 0 {
-		return nil, errors.New("invalid number of the previous block")
+	if prevBlock == nil || uid == nil || amount == nil || nonce == nil {
+		return nil, ErrInvalidArguments
 	}
-	if emptyHash(newOwner.Hash()) {
-		return nil, errors.New("new owner must not be 0x0")
+
+	if prevBlock == nil || prevBlock.Cmp(big.NewInt(-1)) < 0 {
+		return nil, ErrInvalidPreviousBlock
+	}
+	if (newOwner.Hash() == common.Hash{}) {
+		return nil, ErrInvalidNewOwner
 	}
 
 	if uid == nil || uid.Int64() == 0 {
-		return nil, errors.New("uid must not be zero or nil")
+		return nil, ErrInvalidUID
 	}
 
 	return &Transaction{
@@ -76,16 +86,35 @@ func (tx *Transaction) Hash() common.Hash {
 	})
 }
 
+// PrevBlock returns previous block from the transaction.
+func (tx *Transaction) PrevBlock() *big.Int {
+	return tx.data.PrevBlock
+}
+
 // UID returns uid from the transaction.
 func (tx *Transaction) UID() *big.Int {
 	return tx.data.UID
 }
 
+// Amount returns amount from the transaction.
+func (tx *Transaction) Amount() *big.Int {
+	return tx.data.Amount
+}
+
+// NewOwner returns new owner from the transaction.
+func (tx *Transaction) NewOwner() common.Address {
+	return tx.data.NewOwner
+}
+
+// Nonce returns nonce from the transaction.
+func (tx *Transaction) Nonce() *big.Int {
+	return tx.data.Nonce
+}
+
 // SignatureValues returns signature values.
 func SignatureValues(sig []byte) (r, s, v *big.Int, err error) {
 	if len(sig) != 65 {
-		return nil, nil, nil, fmt.Errorf("wrong size for signature:"+
-			" got %d, want 65", len(sig))
+		return nil, nil, nil, ErrInvalidSig
 	}
 	r = new(big.Int).SetBytes(sig[:32])
 	s = new(big.Int).SetBytes(sig[32:64])
@@ -95,6 +124,10 @@ func SignatureValues(sig []byte) (r, s, v *big.Int, err error) {
 
 // SignTx signs the transaction using and a private key.
 func (tx *Transaction) SignTx(key *ecdsa.PrivateKey) (*Transaction, error) {
+	if key == nil {
+		return nil, ErrInvalidPrivateKey
+	}
+
 	sig, err := crypto.Sign(tx.Hash().Bytes(), key)
 	if err != nil {
 		return nil, err
@@ -116,6 +149,9 @@ func (tx *Transaction) EncodeRLP(w io.Writer) error {
 
 // DecodeRLP implements rlp.Decoder
 func DecodeRLP(r io.Reader, tx *Transaction) error {
+	if tx == nil {
+		return ErrInvalidTx
+	}
 	return rlp.Decode(r, &tx.data)
 }
 
@@ -123,6 +159,10 @@ func DecodeRLP(r io.Reader, tx *Transaction) error {
 // secp256k1 elliptic curve and an error if it failed deriving
 // or upon an incorrect signature.
 func Sender(tx *Transaction) (common.Address, error) {
+	if tx == nil {
+		return common.Address{}, ErrInvalidTx
+	}
+
 	r, s, v, err := SignatureValues(tx.data.Sig)
 	if err != nil {
 		return common.Address{}, err
@@ -132,6 +172,10 @@ func Sender(tx *Transaction) (common.Address, error) {
 
 func recoverPlain(sighash common.Hash, R, S,
 	Vb *big.Int) (common.Address, error) {
+	if R == nil || S == nil || Vb == nil {
+		return common.Address{}, ErrInvalidArguments
+	}
+
 	if Vb.BitLen() > 8 {
 		return common.Address{}, ErrInvalidSig
 	}
@@ -149,13 +193,9 @@ func recoverPlain(sighash common.Hash, R, S,
 		return common.Address{}, err
 	}
 	if len(pub) == 0 || pub[0] != 4 {
-		return common.Address{}, errors.New("invalid public key")
+		return common.Address{}, ErrInvalidPublicKey
 	}
 	var addr common.Address
 	copy(addr[:], crypto.Keccak256(pub[1:])[12:])
 	return addr, nil
-}
-
-func emptyHash(h common.Hash) bool {
-	return h == common.Hash{}
 }
