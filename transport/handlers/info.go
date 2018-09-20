@@ -69,6 +69,20 @@ func (api *SmartPlasma) Wallet(
 	return nil
 }
 
+// Wallet2 returns a deposit SmartPlasma block.
+func (api *SmartPlasma) Wallet2(
+	req *Wallet2Req, resp *Wallet2Resp) error {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	block, err := api.service.Wallet2(ctx, req.UID)
+	if err != nil {
+		resp.Error = err.Error()
+	}
+	resp.BlockNumber = block
+	return nil
+}
+
 // Exits returns a incomplete exit by UID.
 func (api *SmartPlasma) Exits(req *ExitsReq, resp *ExitsResp) error {
 	ctx, cancel := api.newContext()
