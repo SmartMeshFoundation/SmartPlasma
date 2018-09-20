@@ -209,3 +209,35 @@ func (c *Client) Wallet(uid *big.Int) (amount *big.Int, err error) {
 
 	return resp.Amount, err
 }
+
+// Wallet2 returns a deposit Smart Plasma block number.
+func (c *Client) Wallet2(uid *big.Int) (block *big.Int, err error) {
+	ctx, cancel := c.newContext()
+	defer cancel()
+
+	if c.sessionRootChain != nil {
+		session := rootchain.CopySession(c.sessionRootChain)
+		session.TransactOpts.Context = ctx
+		return session.Wallet2(uid)
+	}
+	req := &handlers.Wallet2Req{
+		UID: uid,
+	}
+	var resp *handlers.Wallet2Resp
+	call := c.connect.Go(Wallet2Method, req, &resp, nil)
+
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return nil, replay.Error
+		}
+	case <-ctx.Done():
+		return nil, errors.New("timeout")
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+
+	return resp.BlockNumber, err
+}

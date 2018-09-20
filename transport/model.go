@@ -62,4 +62,5 @@ const (
 	ChildChainMethod      = "SmartPlasma.ChildChain"
 	ExitsMethod           = "SmartPlasma.Exits"
 	WalletMethod          = "SmartPlasma.Wallet"
+	Wallet2Method         = "SmartPlasma.Wallet2"
 )
