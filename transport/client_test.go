@@ -559,7 +559,12 @@ func testAddCheckpoint(t *testing.T, direct bool) {
 	cli := testClient(t, s, direct, s.accounts[0])
 	defer cli.Close()
 
-	err := cli.AddCheckpoint(one, two)
+	tx1 := testTx(t, zero, one, one, four, s.accounts[0].From, s.accounts[0])
+	objects1, _ := addTx(t,
+		one, []*transaction.Transaction{tx1}, nil, cli, false)
+	tx1Obj := objects1[tx1.UID().String()]
+
+	err := cli.AddCheckpoint(one, four, tx1Obj.block)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -571,13 +576,54 @@ func TestAddCheckpoint(t *testing.T) {
 }
 
 func testCreateUIDStateProof(t *testing.T, direct bool) {
-	s := newTestService(t, 1)
+	s := newTestService(t, 2)
 	defer s.Close()
 
 	cli := testClient(t, s, direct, s.accounts[0])
 	defer cli.Close()
 
-	err := s.service.AcceptUIDState(one, two)
+	uid := one
+	badUID := new(big.Int).Add(uid, one)
+	nonce := four
+	badNonce := new(big.Int).Add(nonce, one)
+	blockNum := three
+	badBlockNumber := new(big.Int).Add(blockNum, one)
+
+	tx := testTx(t, one, uid, one, nonce, s.accounts[1].From, s.accounts[0])
+
+	blk := transactions.NewBlock()
+
+	err := blk.AddTx(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawBlock, err := blk.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cli.SaveBlockToDB(blockNum.Uint64(), rawBlock)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = s.service.AcceptUIDState(badUID, nonce, blockNum.Uint64())
+	if err == nil {
+		t.Fatal("checkpoint should not be accepted")
+	}
+
+	err = s.service.AcceptUIDState(uid, badNonce, blockNum.Uint64())
+	if err == nil {
+		t.Fatal("checkpoint should not be accepted")
+	}
+
+	err = s.service.AcceptUIDState(uid, nonce, badBlockNumber.Uint64())
+	if err == nil {
+		t.Fatal("checkpoint should not be accepted")
+	}
+
+	err = s.service.AcceptUIDState(uid, nonce, blockNum.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -596,12 +642,12 @@ func testCreateUIDStateProof(t *testing.T, direct bool) {
 		t.Fatal(err)
 	}
 
-	proof, nonce, err := cli.CreateUIDStateProof(one, hash)
+	proof, expected, err := cli.CreateUIDStateProof(one, hash)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if nonce.Uint64() != two.Uint64() {
+	if expected.Uint64() != nonce.Uint64() {
 		t.Fatal("wrong nonce")
 	}
 
@@ -1037,7 +1083,29 @@ func TestCheckpointChallenge(t *testing.T) {
 	tx2Obj := objects2[tx2.UID().String()]
 	tx3Obj := objects3[tx3.UID().String()]
 
-	err := cli.AddCheckpoint(uid, three)
+	badNonce := three
+	badBlockNum := four
+
+	badTx := testTx(t, one, uid, one, badNonce, s.accounts[1].From, s.accounts[0])
+
+	blk := transactions.NewBlock()
+
+	err := blk.AddTx(badTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rawBlock, err := blk.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cli.SaveBlockToDB(badBlockNum.Uint64(), rawBlock)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cli.AddCheckpoint(uid, badNonce, badBlockNum.Uint64())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1164,15 +1232,22 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 
 	uid := deposit(t, s, cli, one)
 
-	tx1 := testTx(t, zero, uid, one, zero, u1.From, owner)
-	tx2 := testTx(t, one, uid, one, one, u2.From, owner)
+	tx1 := testTx(t, zero, uid, one, one, u1.From, owner)
+	tx2 := testTx(t, one, uid, one, two, u2.From, owner)
+	tx3 := testTx(t, two, uid, one, three, u2.From, owner)
 
-	addTx(t, uid, []*transaction.Transaction{tx1}, nil, cli, false)
-	objects2, _ := addTx(t, uid, []*transaction.Transaction{tx2}, nil, cli, false)
+	objects1, _ := addTx(t,
+		uid, []*transaction.Transaction{tx1}, nil, cli, false)
+	objects2, _ := addTx(t,
+		uid, []*transaction.Transaction{tx2}, nil, cli, false)
+	objects3, _ := addTx(t,
+		uid, []*transaction.Transaction{tx3}, nil, cli, false)
 
+	tx1Obj := objects1[tx1.UID().String()]
 	tx2Obj := objects2[tx2.UID().String()]
+	tx3Obj := objects3[tx3.UID().String()]
 
-	err := cli.AddCheckpoint(uid, two)
+	err := cli.AddCheckpoint(uid, tx2.Nonce(), tx2Obj.block)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1245,7 +1320,7 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = cli.AddCheckpoint(uid, three)
+	err = cli.AddCheckpoint(uid, tx3.Nonce(), tx3Obj.block)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1254,6 +1329,7 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	sendCheckpointHashTx2, err := cli.SendCheckpointHash(
 		buildCheckpointResp2)
 	if err != nil {
@@ -1292,7 +1368,7 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 
 	challengeCheckpointTx, err := cli.ChallengeCheckpoint(
 		uid, buildCheckpointResp2, createUIDStateProof2, three,
-		tx2Obj.rawTx, tx2Obj.proof, new(big.Int).SetUint64(tx2Obj.block))
+		tx1Obj.rawTx, tx1Obj.proof, new(big.Int).SetUint64(tx1Obj.block))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1303,8 +1379,7 @@ func TestRespondWithHistoricalCheckpoint(t *testing.T) {
 
 	respTx, err := cli.RespondWithHistoricalCheckpoint(
 		uid, buildCheckpointResp2, createUIDStateProof2,
-		buildCheckpointResp, createUIDStateProof, tx2Obj.rawTx,
-		new(big.Int).SetUint64(tx2Obj.block))
+		buildCheckpointResp, createUIDStateProof, tx1Obj.rawTx, tx2.Nonce())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,14 +6,42 @@ import (
 
 	"github.com/SmartMeshFoundation/Spectrum/common"
 	"github.com/SmartMeshFoundation/Spectrum/core/types"
+	"github.com/pkg/errors"
 
 	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/checkpoints"
+	"github.com/SmartMeshFoundation/SmartPlasma/blockchan/block/transactions"
 	"github.com/SmartMeshFoundation/SmartPlasma/contract/rootchain"
 	"github.com/SmartMeshFoundation/SmartPlasma/merkle"
 )
 
 // AcceptUIDState accept uid with transaction number for current checkpoint.
-func (s *Service) AcceptUIDState(uid, number *big.Int) error {
+func (s *Service) AcceptUIDState(
+	uid, number *big.Int, blockNumber uint64) error {
+	rawBlock, err := s.RawBlockFromDB(blockNumber)
+	if err != nil {
+		return err
+	}
+
+	block := transactions.NewBlock()
+	err = block.Unmarshal(rawBlock)
+	if err != nil {
+		return err
+	}
+
+	_, err = block.Build()
+	if err != nil {
+		return err
+	}
+
+	tx, err := block.GetTx(uid)
+	if err != nil {
+		return err
+	}
+
+	if tx.Nonce().Uint64() != number.Uint64() {
+		return errors.New("wrong the nonce")
+	}
+
 	return s.currentChpt.AddCheckpoint(uid, number)
 }
 

@@ -189,13 +189,14 @@ func (c *Client) AcceptTransaction(rawTx []byte) (err error) {
 
 // AddCheckpoint sends UID and current transaction nonce
 // for inclusion in a checkpoint.
-func (c *Client) AddCheckpoint(uid, nonce *big.Int) error {
+func (c *Client) AddCheckpoint(uid, nonce *big.Int, blockNumber uint64) error {
 	ctx, cancel := c.newContext()
 	defer cancel()
 
 	req := &handlers.AddCheckpointReq{
-		UID:   uid,
-		Nonce: nonce,
+		UID:         uid,
+		Nonce:       nonce,
+		BlockNumber: blockNumber,
 	}
 	var resp *handlers.AddCheckpointResp
 	call := c.connect.Go(AddCheckpointMethod, req, &resp, nil)

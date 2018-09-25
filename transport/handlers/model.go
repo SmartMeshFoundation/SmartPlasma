@@ -31,8 +31,9 @@ type CreateProofResp struct {
 
 // AddCheckpointReq is request for AddCheckpoint method.
 type AddCheckpointReq struct {
-	UID   *big.Int
-	Nonce *big.Int
+	UID         *big.Int
+	Nonce       *big.Int
+	BlockNumber uint64
 }
 
 // AddCheckpointResp is response for AddCheckpoint method.
