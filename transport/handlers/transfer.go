@@ -65,7 +65,8 @@ func (api *SmartPlasma) AcceptTransaction(req *AcceptTransactionReq,
 // AddCheckpoint accepts UID with transaction number for current checkpoint.
 func (api *SmartPlasma) AddCheckpoint(req *AddCheckpointReq,
 	resp *AddCheckpointResp) error {
-	if err := api.service.AcceptUIDState(req.UID, req.Nonce); err != nil {
+	if err := api.service.AcceptUIDState(
+		req.UID, req.Nonce, req.BlockNumber); err != nil {
 		resp.Error = err.Error()
 	}
 	return nil
