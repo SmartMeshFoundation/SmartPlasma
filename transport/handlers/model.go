@@ -317,6 +317,17 @@ type WalletResp struct {
 	Error  string
 }
 
+// Wallet2Req is request for Wallet2 method.
+type Wallet2Req struct {
+	UID *big.Int
+}
+
+// Wallet2Resp is response for Wallet2 method.
+type Wallet2Resp struct {
+	BlockNumber *big.Int
+	Error       string
+}
+
 // ChallengeExistsReq is request for ChallengeExists method.
 type ChallengeExistsReq struct {
 	UID         *big.Int

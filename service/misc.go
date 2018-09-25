@@ -59,6 +59,13 @@ func (s *Service) Wallet(ctx context.Context, uid *big.Int) (*big.Int, error) {
 	return session.Wallet(common.BigToHash(uid))
 }
 
+// Wallet2 returns a deposit Smart Plasma block.
+func (s *Service) Wallet2(ctx context.Context, uid *big.Int) (*big.Int, error) {
+	session := rootchain.CopySession(s.session)
+	session.TransactOpts.Context = ctx
+	return session.Wallet2(uid)
+}
+
 // ChallengeExists if this is true,
 // that a exit is blocked by a transaction of challenge.
 func (s *Service) ChallengeExists(

@@ -245,20 +245,6 @@ func deposit(t *testing.T, s *testService, cli *Client,
 	mint(t, tokOwnerSession, s.accounts[0].From, amount, s.backend)
 	increaseApproval(t, tokOwnerSession, s.mediatorAddress, amount, s.backend)
 
-	// for test
-	rSession, err := rootchain.NewRootChainSession(*s.accounts[0].TransactOpts,
-		s.rootChainAddress, s.backend)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// for test
-	uid, err := rootchain.GenerateNextUID(rSession,
-		cli.opts.From, tokenAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	tx, err := cli.Deposit(tokenAddr, amount)
 	if err != nil {
 		t.Fatal(err)
@@ -276,6 +262,8 @@ func deposit(t *testing.T, s *testService, cli *Client,
 		t.Fatal("transaction is failed")
 	}
 
+	uid := new(big.Int).SetBytes(tr.Logs[1].Data[64:96])
+
 	amount2, err := cli.Wallet(uid)
 	if err != nil {
 		t.Fatal(err)
@@ -285,14 +273,18 @@ func deposit(t *testing.T, s *testService, cli *Client,
 		t.Fatal("amount is wrong")
 	}
 
-	count, err := cli.DepositCount()
+	depositBlock, err := cli.Wallet2(uid)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if count.Uint64() != 1 {
-		t.Fatal("wrong deposit count")
+	lastBlock, err := cli.LastBlockNumber()
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	if depositBlock.Uint64() != lastBlock.Uint64() {
+		t.Fatal("wrong deposit block")
 	}
 
 	return uid
@@ -780,6 +772,8 @@ func testChallengeNonce(t *testing.T, direct bool) {
 	tx1Obj := objects1[tx1.UID().String()]
 	tx2Obj := objects2[tx2.UID().String()]
 	tx3Obj := objects3[tx3.UID().String()]
+
+	deposit(t, s, cli, one)
 
 	startExitTx, err := cli2.StartExit(tx1Obj.rawTx, tx1Obj.proof,
 		new(big.Int).SetUint64(tx1Obj.block), tx2Obj.rawTx,
