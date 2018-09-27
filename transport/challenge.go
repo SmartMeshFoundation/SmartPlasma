@@ -159,6 +159,59 @@ func (c *Client) RespondChallengeExit(uid *big.Int, challengeTx, respondTx,
 	return tx, err
 }
 
+// RespondChallengeExitWithCheckpoint transacts
+// respondChallengeExitWithCheckpoint function
+// from RootChain contract.
+func (c *Client) RespondChallengeExitWithCheckpoint(uid *big.Int,
+	challengeTx []byte, checkpointRoot [32]byte, checkpointProof []byte,
+	checkpointNonce [32]byte) (*types.Transaction, error) {
+	ctx, cancel := c.newContext()
+	defer cancel()
+
+	if c.sessionRootChain != nil {
+		session := rootchain.CopySession(c.sessionRootChain)
+		session.TransactOpts.Context = ctx
+		return session.RespondChallengeExitWithCheckpoint(uid, challengeTx,
+			checkpointRoot, checkpointProof, checkpointNonce)
+	}
+	if c.root == nil {
+		return nil, ErrTransactor
+	}
+
+	tx, err := c.root.Transaction(c.opts.TransactOpts,
+		"respondChallengeExitWithCheckpoint", uid, challengeTx,
+		checkpointRoot, checkpointProof, checkpointNonce)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := tx.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	req := &handlers.RawReq{
+		RawTx: raw,
+	}
+
+	var resp handlers.RawResp
+	call := c.connect.Go(RespondChallengeExitWithCheckpointMethod,
+		req, &resp, nil)
+	select {
+	case replay := <-call.Done:
+		if replay.Error != nil {
+			return nil, replay.Error
+		}
+	case <-ctx.Done():
+		return nil, errors.New("timeout")
+	}
+
+	if resp.Error != "" {
+		return nil, errors.New(resp.Error)
+	}
+
+	return tx, err
+}
+
 // RespondCheckpointChallenge transacts respondCheckpointChallenge function
 // from RootChain contract.
 func (c *Client) RespondCheckpointChallenge(uid *big.Int,

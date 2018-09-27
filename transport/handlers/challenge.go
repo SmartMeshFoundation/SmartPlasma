@@ -44,6 +44,22 @@ func (api *SmartPlasma) RespondChallengeExit(req *RawReq,
 	return nil
 }
 
+// RespondChallengeExitWithCheckpoint invokes
+// respondChallengeExitWithCheckpoint method
+// on RootChain contract from a specific account.
+// Function received raw signed Ethereum transaction.
+func (api *SmartPlasma) RespondChallengeExitWithCheckpoint(req *RawReq,
+	resp *RawResp) error {
+	ctx, cancel := api.newContext()
+	defer cancel()
+
+	if err := api.service.RootChainTransaction(
+		ctx, req.RawTx); err != nil {
+		resp.Error = err.Error()
+	}
+	return nil
+}
+
 // RespondCheckpointChallenge invokes respondCheckpointChallenge method
 // on RootChain contract from a specific account.
 // Function received raw signed Ethereum transaction.

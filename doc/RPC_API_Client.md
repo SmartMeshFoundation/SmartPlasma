@@ -56,6 +56,23 @@ Invokes `respondChallengeExit` method on RootChain contract from a specific acco
 1. `*types.Transaction` - Spectrum transaction.
 2. `error` - standard error.
 
+### RespondChallengeExitWithCheckpoint
+
+Invokes `respondChallengeExitWithCheckpoint` method on RootChain contract from a specific account.
+
+#### Parameters
+
+1. `*big.Int` - unique identifier of a deposit (uid).
+2. `[]byte` - raw Smart Plasma transaction that disputes an exit.
+3. `common.Hash` - merkle root for checkpoint block.
+4. `[]byte` - proof of inclusion of the uid in a checkpoint block.
+5. `common.Hash` - transaction nonce which is more than challengeTx nonce (in hash format).
+
+#### Returns
+
+1. `*types.Transaction` - Spectrum transaction.
+2. `error` - standard error.
+
 ### RespondChallengeExit
 
 Invokes `respondCheckpointChallenge` method on RootChain contract from a specific account.

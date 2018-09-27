@@ -1053,6 +1053,124 @@ func TestRespondToChallenge(t *testing.T) {
 	testRespondToChallenge(t, false)
 }
 
+func TestRespondChallengeExitWithCheckpoint(t *testing.T) {
+	s := newTestService(t, 3)
+	defer s.Close()
+
+	owner := s.accounts[0]
+	u1 := s.accounts[1]
+	u2 := s.accounts[2]
+
+	cli := testClient(t, s, true, owner)
+	defer cli.Close()
+
+	cli1 := testClient(t, s, true, u1)
+	defer cli.Close()
+
+	cli2 := testClient(t, s, true, u2)
+	defer cli.Close()
+
+	uid := deposit(t, s, cli, one)
+
+	tx1 := testTx(t, zero, uid, one, zero, owner.From, owner)
+	tx2 := testTx(t, one, uid, one, one, u1.From, owner)
+	tx3 := testTx(t, two, uid, one, two, u2.From, u1)
+	tx4 := testTx(t, three, uid, one, three, owner.From, u2)
+	tx5 := testTx(t, four, uid, one, four, u2.From, owner)
+
+	addTx(t, uid, []*transaction.Transaction{tx1}, nil, cli, false)
+	objects2, _ := addTx(t, uid, []*transaction.Transaction{tx2}, nil, cli, false)
+	objects3, _ := addTx(t, uid, []*transaction.Transaction{tx3}, nil, cli, false)
+	objects4, _ := addTx(t, uid, []*transaction.Transaction{tx4}, nil, cli, false)
+	objects5, _ := addTx(t, uid, []*transaction.Transaction{tx5}, nil, cli, false)
+
+	tx2Obj := objects2[tx2.UID().String()]
+	tx3Obj := objects3[tx3.UID().String()]
+	tx4Obj := objects4[tx4.UID().String()]
+	tx5Obj := objects5[tx5.UID().String()]
+
+	err := cli.AddCheckpoint(uid, tx3.Nonce(), tx3Obj.block)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buildCheckpointResp, err := cli.BuildCheckpoint()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sendCheckpointHashTx, err := cli.SendCheckpointHash(
+		buildCheckpointResp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sendCheckpointHashTr, err := cli.WaitMined(
+		context.Background(), sendCheckpointHashTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sendCheckpointHashTr.Status != 1 {
+		t.Fatal("wrong transaction status")
+	}
+
+	err = cli.SaveCurrentCheckpointBlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	createUIDStateProof, nonce, err := cli.CreateUIDStateProof(
+		uid, buildCheckpointResp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// + 3 weeks
+	timeMachine(t, time.Duration(504*time.Hour), s.backend)
+
+	startExitTx, err := cli2.StartExit(tx4Obj.rawTx, tx4Obj.proof,
+		new(big.Int).SetUint64(tx4Obj.block), tx5Obj.rawTx,
+		tx5Obj.proof, new(big.Int).SetUint64(tx5Obj.block))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !s.backend.GoodTransaction(startExitTx) {
+		t.Fatal("failed to start exit")
+	}
+
+	challengeExitTx, err := cli1.ChallengeExit(uid, tx2Obj.rawTx, tx2Obj.proof,
+		new(big.Int).SetUint64(tx2Obj.block))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !s.backend.GoodTransaction(challengeExitTx) {
+		t.Fatal("failed to start exit")
+	}
+
+	respondChallengeExitTx, err := cli2.RespondChallengeExitWithCheckpoint(
+		uid, tx2Obj.rawTx, buildCheckpointResp, createUIDStateProof,
+		common.BigToHash(nonce))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !s.backend.GoodTransaction(respondChallengeExitTx) {
+		t.Fatal("failed to start exit")
+	}
+
+	exist, err := cli.ChallengeExists(uid, tx2Obj.rawTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if exist {
+		t.Fatal("challenge is exists")
+	}
+}
+
 func TestCheckpointChallenge(t *testing.T) {
 	s := newTestService(t, 3)
 	defer s.Close()
