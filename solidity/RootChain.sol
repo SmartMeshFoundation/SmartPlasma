@@ -495,6 +495,45 @@ contract RootChain is Ownable {
         RespondChallengeExit(uid);
     }
 
+    /** @dev Answers with checkpoint a challenge exit.
+     *  @param uid Unique identifier of a deposit.
+     *  @param challengeTx Transaction that disputes an exit.
+     *  @param checkpointRoot Merkle root for checkpoint block.
+     *  @param checkpointProof Proof of inclusion of the uid in a checkpoint block.
+     *  @param checkpointNonce Transaction nonce which is more than challengeTx nonce.
+     */
+    function respondChallengeExitWithCheckpoint(
+        uint256 uid,
+        bytes challengeTx,
+        bytes32 checkpointRoot,
+        bytes checkpointProof,
+        bytes32 checkpointNonce
+    )
+        public
+    {
+        Transaction.Tx memory challengeDecodedTx = challengeTx.createTx();
+
+        require(challengeExists(uid, challengeTx));
+        require(exits[uid].state == 1);
+        require(checkpoints[checkpointRoot].add(challengePeriod) < now);
+        require(uint256(checkpointNonce) > challengeDecodedTx.nonce);
+        require(
+            checkpointNonce.verifyProof(
+                uid,
+                checkpointRoot,
+                checkpointProof
+            )
+        );
+
+        removeChallenge(uid, challengeTx);
+
+        if (challengesLength(uid) == 0) {
+            exits[uid].state = 2;
+        }
+
+        RespondChallengeExit(uid);
+    }
+
     /** @dev Answers a challenge checkpoint.
      *  @param uid Unique identifier of a deposit.
      *  @param checkpointRoot Merkle root for checkpoint block.
