@@ -479,7 +479,7 @@ contract RootChain is Ownable {
         require(challengeDecodedTx.amount == respondDecodedTx.amount);
         require(challengeDecodedTx.newOwner == respondDecodedTx.signer);
         require(challengeDecodedTx.nonce.add(uint256(1)) == respondDecodedTx.nonce);
-        require(blockNum < exits[uid].txBeforeExitTxBlkNum);
+        require(blockNum <= exits[uid].txBeforeExitTxBlkNum);
 
         bytes32 txHash = respondDecodedTx.hash;
         bytes32 blockRoot = childChain[blockNum];
